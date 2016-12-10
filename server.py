@@ -1,3 +1,5 @@
+from random import randrange
+
 global _game_counter
 _game_counter = 0
 
@@ -57,10 +59,9 @@ class Game:
         return list_nicknames
 
 class Player:
-    def __init__(self, nickname, fleet, game_field_size):
+    def __init__(self, nickname, game_field_size):
         self.nickname = nickname
-        self.createBattlefield(game_field_size)
-        self.createPlayersFleet(fleet)
+        self.battlefield = self.createBattlefield(game_field_size)
 
     def getNickname(self):
         return self.nickname
@@ -70,18 +71,26 @@ class Player:
             print row
 
     def createBattlefield(self, game_field_size):
-        self.battlefield = []
+        battlefield = []
         for i in range(game_field_size):
-            self.battlefield.append([])
+            battlefield.append([])
             for j in range(game_field_size):
-                self.battlefield[i].append(0)
+                battlefield[i].append(0)
+        return battlefield
 
-    def createPlayersFleet(self, fleet):
+    def addPlayersFleetOnBoard(self, fleet):
         self.fleet = fleet
         for ship_list_by_type in [fleet.patrol_boat_list, fleet.destroyer_list, fleet.submarine_list, fleet.carrier_list]:
             for ship in ship_list_by_type:
                 for coordinates in ship.list_coordinates:
                     self.battlefield[coordinates[1]][coordinates[0]] = 1
+
+    #def generateRandomFleet(self, game_field_size):
+    #    fleet = Fleet(game_field_size)
+    #    temp_battlefield = self.createBattlefield(game_field_size)
+    #    for ship_size in [4,3,3,2,2,2,1,1,1,1]:
+    #        direction = randrange(2)
+
 
 
 class Fleet:
