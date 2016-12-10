@@ -1,6 +1,5 @@
 import copy, random
 
-
 def print_board(s, board):
     # WARNING: This function was crafted with a lot of attention. Please be aware that any
     #          modifications to this function will result in a poor output of the board
