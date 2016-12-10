@@ -25,6 +25,9 @@ class Server:
         game = Game(field_size)
         self.game_list.append(game)
 
+    def addGame(self, game):
+        self.game_list.append(game)
+
     def createShip(self, ship_size, list_coord):
         return Ship(ship_size, list_coord)
 
@@ -67,8 +70,36 @@ class Player:
         return self.nickname
 
     def _printBattlefield(self):
+        main_str = "    "
+        for num in range(len(self.battlefield)):
+            if num < 10:
+                main_str += (" %s  ") % (num + 1)
+            else:
+                main_str += ("%s  ") % (num + 1)
+
+        main_str += "\n"
+        counter = 1
         for row in self.battlefield:
-            print row
+            if counter < 10:
+                str = "%s. |" % counter
+            else:
+                str = "%s.|" % counter
+            for elem in row:
+                if elem == 0:
+                    str_el = " "
+                elif elem == 1:
+                    str_el = "#"
+                elif elem == 2:
+                    str_el = "$"
+                elif elem == 3:
+                    str_el = "*"
+                str += " %s |" % str_el
+            counter += 1
+            main_str += str
+            main_str += "\n"
+            main_str += "____"*(len(self.battlefield)+1)
+            main_str += "\n"
+        return main_str
 
     def createBattlefield(self, game_field_size):
         battlefield = []
@@ -77,6 +108,8 @@ class Player:
             for j in range(game_field_size):
                 battlefield[i].append(0)
         return battlefield
+
+
 
     def addPlayersFleetOnBoard(self, fleet):
         self.fleet = fleet
@@ -155,9 +188,9 @@ class Ship:
 if __name__ == "__main__":
     server = Server()
     #print server.getServerName()
-    game1 = Game(5)
+    game1 = Game(10)
     game2 = Game(10)
-    server.addGame(game1)
+    server.createGame(game1)
     server.addGame(game2)
     patrol_boat = Ship(1, [(0,0)])
     submarine = Ship(3, [(2, 3),(3,3),(4,3)])
@@ -165,8 +198,8 @@ if __name__ == "__main__":
     fleet.addShip(patrol_boat)
     fleet.addShip(submarine)
     print fleet.getNumberOfShips()
-    player = Player('Dimas', fleet, game1.size)
-    player._printBattlefield()
+    player = Player('Dimas', game1.size)
+    player.addPlayersFleetOnBoard(fleet)
+    print player._printBattlefield()
     game1.addPlayer(player)
-    print game1.getPlayerNicknames()
-    print server.getGamesList()
+
