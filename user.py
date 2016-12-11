@@ -150,7 +150,7 @@ if __name__ == "__main__":
                     for i in range(1,size):
                         list.append((x,y+i))
                 else:
-                    print "Ty dolboyeb"
+                    print "Ty dolboyeb."
                     continue
             fleet.addShip(Ship(size,list))
             player.addPlayersFleetOnBoard(fleet)
