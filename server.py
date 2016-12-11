@@ -118,7 +118,7 @@ class Player:
             for ship in ship_list_by_type:
                 if ship:
                     for coordinates in ship.list_coordinates:
-                        self.battlefield[coordinates[1]][coordinates[0]] = 1
+                        self.battlefield[coordinates[0]][coordinates[1]] = 1
 
     #def generateRandomFleet(self, game_field_size):
     #    fleet = Fleet(game_field_size)

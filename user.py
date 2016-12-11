@@ -5,6 +5,10 @@ max_field_size = 40
 list_of_servers = ["server#1"]
 
 
+def checkAddedShip(x,y,direction,ship_size,battlefield):
+    pass
+
+
 
 if __name__ == "__main__":
     print "Hello! Welcome to the Battleship Game."
