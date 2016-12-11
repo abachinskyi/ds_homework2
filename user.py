@@ -2,27 +2,7 @@ from server import *
 #import pika
 import uuid
 
-def checkNear(x,y,battlefield):
-    for i in [-1,0,1]:
-        for j in [-1,0,1]:
-            if 0<=x+i<len(battlefield) and 0<=y+j<len(battlefield):
-                if battlefield[x+i][y+j]==1:
-                    return False
-    return True
 
-def checkAddedShip(x,y,ship_size,battlefield, direction = ''):
-    if ship_size == 1:
-        if not checkNear(x,y,battlefield):
-            return False
-    elif (direction == 'v') and ((y+ship_size)<len(battlefield)):
-        for i in ship_size:
-            if not checkNear(x,y+i,battlefield):
-                return False
-    elif (direction == 'h') and ((x+ship_size)<len(battlefield)):
-        for i in ship_size:
-            if not checkNear(x+i,y,battlefield):
-                return False
-    return True
 
 
 #########################____RPC____START_____#################################
@@ -66,11 +46,27 @@ max_field_size = 40
 list_of_servers = ["server#1"]
 
 
+def checkNear(x,y,battlefield):
+    for i in [-1,0,1]:
+        for j in [-1,0,1]:
+            if 0<=x+i<len(battlefield) and 0<=y+j<len(battlefield):
+                if battlefield[x+i][y+j]==1:
+                    return False
+    return True
 
-def checkAddedShip(x,y,direction,ship_size,battlefield):
-    pass
-
-
+def checkAddedShip(x,y,ship_size,battlefield, direction = ''):
+    if ship_size == 1:
+        if not checkNear(x,y,battlefield):
+            return False
+    elif (direction == 'v') and ((y+ship_size)<len(battlefield)):
+        for i in ship_size:
+            if not checkNear(x,y+i,battlefield):
+                return False
+    elif (direction == 'h') and ((x+ship_size)<len(battlefield)):
+        for i in ship_size:
+            if not checkNear(x+i,y,battlefield):
+                return False
+    return True
 
 if __name__ == "__main__":
 
@@ -180,6 +176,13 @@ if __name__ == "__main__":
                 else:
                     print "Ty dolboyeb."
                     continue
+                checkAddedShip(x,y,direction,size,player.battlefield)
+            else:
+                checkAddedShip(x, y, size, player.battlefield)
             fleet.addShip(Ship(size,list))
             player.addPlayersFleetOnBoard(fleet)
             print player.returnBattlefield()
+    ##### Game starts #####
+    while True:
+        pass
+
