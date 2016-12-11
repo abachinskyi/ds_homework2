@@ -1,9 +1,9 @@
 from server import *
-import pika
+#import pika
 import uuid
 
 #########################____RPC____START_____#################################
-
+"""
 class User(object):
 
     def __init__(self):
@@ -35,7 +35,7 @@ class User(object):
         while self.response is None:
             self.connection.process_data_events()
         return int(self.response)
-
+"""
 #########################____RPC____END_____####################################
 
 min_field_size = 10
@@ -52,12 +52,12 @@ def checkAddedShip(x,y,direction,ship_size,battlefield):
 if __name__ == "__main__":
 
 #########################____RPC____START_____#################################
-
-    user = User()
-    print " [x] Requesting fib(30)"
-    response = user.call(30)
-    print " [.] Got %r" % (response,)
-
+#
+#    user = User()
+#    print " [x] Requesting fib(30)"
+#    response = user.call(30)
+#    print " [.] Got %r" % (response,)
+#
 #########################____RPC____END_____####################################
 
     print "Hello! Welcome to the Battleship Game."

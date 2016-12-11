@@ -1,8 +1,9 @@
 from random import randrange
-import pika
+#import pika
+import math
 
 #########################____RPC____START_____##################################
-
+"""
 connection = pika.BlockingConnection(pika.ConnectionParameters(
         host='localhost'))
 
@@ -22,7 +23,7 @@ def on_request(ch, method, props, body):
                                                      props.correlation_id),
                      body=str(response))
     ch.basic_ack(delivery_tag = method.delivery_tag)
-
+"""
 #########################____RPC____END_____####################################
 
 global _game_counter
