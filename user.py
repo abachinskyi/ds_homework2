@@ -134,7 +134,7 @@ if __name__ == "__main__":
                 size = int(choice)
                 print size
             else:
-                print 'TY DOLBOEB'
+                print 'TY DOLBOEB.'
                 continue
             coords = raw_input('Enter top cootdinate of the ship: x,y: ')
             x,y = coords.split(',')
