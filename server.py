@@ -1,5 +1,29 @@
 from random import randrange
-import math
+import pika
+
+#########################____RPC____START_____##################################
+
+connection = pika.BlockingConnection(pika.ConnectionParameters(
+        host='localhost'))
+
+channel = connection.channel()
+
+channel.queue_declare(queue='rpc_queue')
+
+def on_request(ch, method, props, body):
+    n = int(body)
+
+    print " [.] fib(%s)"  % (n,)
+    response =          # call of the function that is needed
+
+    ch.basic_publish(exchange='',
+                     routing_key=props.reply_to,
+                     properties=pika.BasicProperties(correlation_id = \
+                                                     props.correlation_id),
+                     body=str(response))
+    ch.basic_ack(delivery_tag = method.delivery_tag)
+
+#########################____RPC____END_____####################################
 
 global _game_counter
 _game_counter = 0
@@ -70,7 +94,7 @@ class Player:
     def getNickname(self):
         return self.nickname
 
-    def returnBattlefield(self):
+    def _printBattlefield(self):
         main_str = "    "
         for num in range(len(self.battlefield)):
             if num < 10:
@@ -116,9 +140,8 @@ class Player:
         self.fleet = fleet
         for ship_list_by_type in [fleet.patrol_boat_list, fleet.destroyer_list, fleet.submarine_list, fleet.carrier_list]:
             for ship in ship_list_by_type:
-                if ship:
-                    for coordinates in ship.list_coordinates:
-                        self.battlefield[coordinates[1]][coordinates[0]] = 1
+                for coordinates in ship.list_coordinates:
+                    self.battlefield[coordinates[1]][coordinates[0]] = 1
 
     #def generateRandomFleet(self, game_field_size):
     #    fleet = Fleet(game_field_size)
@@ -136,45 +159,18 @@ class Fleet:
         self.destroyer_list = []
         self.submarine_list = []
         self.carrier_list = []
-        for i in range(int(math.floor(0.4*self.size))):
-            self.patrol_boat_list.append(None)
-        for i in range(int(math.floor(0.3 * self.size))):
-            self.destroyer_list.append(None)
-        for i in range(int(math.floor(0.2 * self.size))):
-            self.submarine_list.append(None)
-        for i in range(int(math.floor(0.1 * self.size))):
-            self.carrier_list.append(None)
         #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     def addShip(self, ship):
-        pb, d, s, c = self.checkFullfil()
         if ship.size == 1:
-            self.patrol_boat_list[pb - 1] = ship
+            self.patrol_boat_list.append(ship)
         elif ship.size == 2:
-            self.destroyer_list[d - 1] = ship
+            self.destroyer_list.append(ship)
         elif ship.size == 3:
-            self.submarine_list[s - 1] = ship
+            self.submarine_list.append(ship)
         elif ship.size == 4:
-            self.carrier_list[c - 1] = ship
+            self.carrier_list.append(ship)
 
-    def checkFullfil(self):
-        pb = 0
-        d = 0
-        s = 0
-        c = 0
-        for elem in self.patrol_boat_list:
-            if not elem:
-                pb +=1
-        for elem in self.destroyer_list:
-            if not elem:
-                d += 1
-        for elem in self.submarine_list:
-            if not elem:
-                s += 1
-        for elem in self.carrier_list:
-            if not elem:
-                c += 1
-        return pb, d, s, c
 
     def getNumberOfShips(self, type = "All"):
         if type == "All":
@@ -215,6 +211,17 @@ class Ship:
 
 
 if __name__ == "__main__":
+
+#########################____RPC____START_____#################################
+
+    channel.basic_qos(prefetch_count=1)
+    channel.basic_consume(on_request, queue='rpc_queue')
+
+    print " [x] Awaiting RPC requests"
+    channel.start_consuming()
+
+#########################____RPC____END_____####################################
+
     server = Server()
     #print server.getServerName()
     game1 = Game(10)
@@ -229,7 +236,6 @@ if __name__ == "__main__":
     print fleet.getNumberOfShips()
     player = Player('Dimas', game1.size)
     player.addPlayersFleetOnBoard(fleet)
-    #print player.returnBattlefield()
+    print player._printBattlefield()
     game1.addPlayer(player)
-    print fleet.checkFullfil()
 
