@@ -1,4 +1,5 @@
 from random import randrange
+import math
 
 global _game_counter
 _game_counter = 0
@@ -69,7 +70,7 @@ class Player:
     def getNickname(self):
         return self.nickname
 
-    def _printBattlefield(self):
+    def returnBattlefield(self):
         main_str = "    "
         for num in range(len(self.battlefield)):
             if num < 10:
@@ -115,8 +116,9 @@ class Player:
         self.fleet = fleet
         for ship_list_by_type in [fleet.patrol_boat_list, fleet.destroyer_list, fleet.submarine_list, fleet.carrier_list]:
             for ship in ship_list_by_type:
-                for coordinates in ship.list_coordinates:
-                    self.battlefield[coordinates[1]][coordinates[0]] = 1
+                if ship:
+                    for coordinates in ship.list_coordinates:
+                        self.battlefield[coordinates[1]][coordinates[0]] = 1
 
     #def generateRandomFleet(self, game_field_size):
     #    fleet = Fleet(game_field_size)
@@ -134,18 +136,45 @@ class Fleet:
         self.destroyer_list = []
         self.submarine_list = []
         self.carrier_list = []
+        for i in range(int(math.floor(0.4*self.size))):
+            self.patrol_boat_list.append(None)
+        for i in range(int(math.floor(0.3 * self.size))):
+            self.destroyer_list.append(None)
+        for i in range(int(math.floor(0.2 * self.size))):
+            self.submarine_list.append(None)
+        for i in range(int(math.floor(0.1 * self.size))):
+            self.carrier_list.append(None)
         #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     def addShip(self, ship):
+        pb, d, s, c = self.checkFullfil()
         if ship.size == 1:
-            self.patrol_boat_list.append(ship)
+            self.patrol_boat_list[pb - 1] = ship
         elif ship.size == 2:
-            self.destroyer_list.append(ship)
+            self.destroyer_list[d - 1] = ship
         elif ship.size == 3:
-            self.submarine_list.append(ship)
+            self.submarine_list[s - 1] = ship
         elif ship.size == 4:
-            self.carrier_list.append(ship)
+            self.carrier_list[c - 1] = ship
 
+    def checkFullfil(self):
+        pb = 0
+        d = 0
+        s = 0
+        c = 0
+        for elem in self.patrol_boat_list:
+            if not elem:
+                pb +=1
+        for elem in self.destroyer_list:
+            if not elem:
+                d += 1
+        for elem in self.submarine_list:
+            if not elem:
+                s += 1
+        for elem in self.carrier_list:
+            if not elem:
+                c += 1
+        return pb, d, s, c
 
     def getNumberOfShips(self, type = "All"):
         if type == "All":
@@ -200,6 +229,7 @@ if __name__ == "__main__":
     print fleet.getNumberOfShips()
     player = Player('Dimas', game1.size)
     player.addPlayersFleetOnBoard(fleet)
-    print player._printBattlefield()
+    #print player.returnBattlefield()
     game1.addPlayer(player)
+    print fleet.checkFullfil()
 

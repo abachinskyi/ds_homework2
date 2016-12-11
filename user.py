@@ -17,7 +17,6 @@ if __name__ == "__main__":
     server_number = raw_input()
     #!!! Connection !!!#
     server = Server()
-    server.createGame(13)
     ####################
     while True:
         nickname = raw_input("Enter your nickname: ")
@@ -46,7 +45,7 @@ if __name__ == "__main__":
                 else:
                     print "You have entered field size that is out of bounds. Please try again."
             #Creation of new game
-            server.createGame(size)
+            server.createGame(int(size))
             number_of_game = 0
             break
 
@@ -65,4 +64,46 @@ if __name__ == "__main__":
             print "There is no such option. Please enter again."
 
     print "Game %s starts" % server.game_list[number_of_game].game_name
-    
+    player = Player(nickname,  server.game_list[number_of_game].size)
+    print player.returnBattlefield()
+    fleet = Fleet(server.game_list[number_of_game].size)
+    while True:
+        boats = fleet.checkFullfil()
+        if boats == (0,0,0,0):
+            break
+        else:
+            print "You need to enter more ships:"
+            if boats[0]:
+                print "1. Patrol boat: %d" % boats[0]
+            if boats[1]:
+                print "2. Destroyer: %d" % boats[1]
+            if boats[2]:
+                print "3. Submarine: %d" % boats[2]
+            if boats[3]:
+                print "4. Carrier: %d" % boats[3]
+            choice = raw_input("Choose option:")
+            if choice == '1' or choice == '2' or choice == '3' or choice == '4':
+                size = int(choice)
+                print size
+            else:
+                print 'TY DOLBOEB'
+                continue
+            coords = raw_input('Enter top cootdinate of the ship: x,y: ')
+            x,y = coords.split(',')
+            x,y = int(x)-1, int(y)-1
+            list = []
+            list.append((x,y))
+            if size > 1:
+                direction = raw_input('Do you want to place ship horizontally (h) or vertically (v)')
+                if direction == 'h':
+                    for i in range(1,size):
+                        list.append((x+i,y))
+                elif direction == 'v':
+                    for i in range(1,size):
+                        list.append((x,y+i))
+                else:
+                    print "Ty dolboyeb"
+                    continue
+            fleet.addShip(Ship(size,list))
+            player.addPlayersFleetOnBoard(fleet)
+            print player.returnBattlefield()
