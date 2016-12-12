@@ -1,5 +1,5 @@
 from random import randrange
-#import pika
+import pika
 import math
 
 #########################____RPC____START_____##################################
@@ -13,9 +13,10 @@ channel.queue_declare(queue='rpc_queue')
 
 def on_request(ch, method, props, body):
     n = int(body)
+    game = Game(n)
 
     print " [.] fib(%s)"  % (n,)
-    response =          # call of the function that is needed
+    response = 'OK!'         # call of the function that is needed
 
     ch.basic_publish(exchange='',
                      routing_key=props.reply_to,
@@ -23,6 +24,7 @@ def on_request(ch, method, props, body):
                                                      props.correlation_id),
                      body=str(response))
     ch.basic_ack(delivery_tag = method.delivery_tag)
+    return game
 """
 #########################____RPC____END_____####################################
 
@@ -242,13 +244,14 @@ class Ship:
 if __name__ == "__main__":
 
 #########################____RPC____START_____#################################
+    """
 
     channel.basic_qos(prefetch_count=1)
     channel.basic_consume(on_request, queue='rpc_queue')
 
     print " [x] Awaiting RPC requests"
     channel.start_consuming()
-
+"""
 #########################____RPC____END_____####################################
 
     server = Server()

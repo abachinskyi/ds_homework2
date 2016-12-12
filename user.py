@@ -1,16 +1,14 @@
 from server import *
-from random import randint
-#import pika
+import pika
 import uuid
-
-
-
+from random import randint
 
 #########################____RPC____START_____#################################
 """
 class User(object):
 
     def __init__(self):
+        self.rpc_queue = 'rpc_queue'
         self.connection = pika.BlockingConnection(pika.ConnectionParameters(
                 host='localhost'))
 
@@ -26,11 +24,11 @@ class User(object):
         if self.corr_id == props.correlation_id:
             self.response = body
 
-    def call(self, n):
+    def callNewGame(self,n):
         self.response = None
         self.corr_id = str(uuid.uuid4())
         self.channel.basic_publish(exchange='',
-                                   routing_key='rpc_queue',
+                                   routing_key= self.rpc_queue,
                                    properties=pika.BasicProperties(
                                        reply_to=self.callback_queue,
                                        correlation_id=self.corr_id,
