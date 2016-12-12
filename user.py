@@ -1,4 +1,5 @@
 from server import *
+from random import randint
 #import pika
 import uuid
 
@@ -46,7 +47,7 @@ max_field_size = 40
 list_of_servers = ["server#1"]
 
 
-def checkNear(x,y,battlefield):
+def checkNear(y,x,battlefield):
     for i in [-1,0,1]:
         for j in [-1,0,1]:
             if 0<=x+i<len(battlefield) and 0<=y+j<len(battlefield):
@@ -54,16 +55,18 @@ def checkNear(x,y,battlefield):
                     return False
     return True
 
-def checkAddedShip(x,y,ship_size,battlefield, direction = ''):
+def checkAddedShip(y,x,ship_size,battlefield, direction = ''):
     if ship_size == 1:
         if not checkNear(x,y,battlefield):
             return False
+    elif ((direction == 'v') and ((y+ship_size)>len(battlefield))) or ((direction == 'h') and ((x+ship_size)>len(battlefield))):
+        return False
     elif (direction == 'v') and ((y+ship_size)<len(battlefield)):
-        for i in ship_size:
+        for i in range(ship_size):
             if not checkNear(x,y+i,battlefield):
                 return False
     elif (direction == 'h') and ((x+ship_size)<len(battlefield)):
-        for i in ship_size:
+        for i in range(ship_size):
             if not checkNear(x+i,y,battlefield):
                 return False
     return True
@@ -140,48 +143,73 @@ if __name__ == "__main__":
     print player.returnBattlefield()
     fleet = Fleet(server.game_list[number_of_game].size)
     while True:
-        boats = fleet.checkFullfil()
-        if boats == (0,0,0,0):
-            break
-        else:
-            print "You need to enter more ships:"
-            if boats[0]:
-                print "1. Patrol boat: %d" % boats[0]
-            if boats[1]:
-                print "2. Destroyer: %d" % boats[1]
-            if boats[2]:
-                print "3. Submarine: %d" % boats[2]
-            if boats[3]:
-                print "4. Carrier: %d" % boats[3]
-            choice = raw_input("Choose option:")
-            if choice == '1' or choice == '2' or choice == '3' or choice == '4':
-                size = int(choice)
-                print size
-            else:
-                print 'TY DOLBOEB.'
-                continue
-            coords = raw_input('Enter top cootdinate of the ship: x,y: ')
-            x,y = coords.split(',')
-            x,y = int(x)-1, int(y)-1
-            list = []
-            list.append((x,y))
-            if size > 1:
-                direction = raw_input('Do you want to place ship horizontally (h) or vertically (v)')
-                if direction == 'h':
-                    for i in range(1,size):
-                        list.append((x+i,y))
-                elif direction == 'v':
-                    for i in range(1,size):
-                        list.append((x,y+i))
+        print "What would you like to do:"
+        print "1. Generate random fleet."
+        print "2. Create your own fleet."
+        fleet_choice = raw_input("Your choice: ")
+        if fleet_choice == "1":
+            boats = fleet.checkFullfil()
+            for num_ships_by_type in (boats[3], boats[2], boats[1]):
+                for ship in range(num_ships_by_type):
+                    while True:
+                        x = randint(0,len(player.battlefield) - 1)
+                        y = randint(0, len(player.battlefield) - 1)
+                        direction = randint(0,1)
+                        #if checkAddedShip(x,y,
+
+
+
+        elif fleet_choice == "2":
+            while True:
+                boats = fleet.checkFullfil()
+                if boats == (0, 0, 0, 0):
+                    break
                 else:
-                    print "Ty dolboyeb."
-                    continue
-                checkAddedShip(x,y,direction,size,player.battlefield)
-            else:
-                checkAddedShip(x, y, size, player.battlefield)
-            fleet.addShip(Ship(size,list))
-            player.addPlayersFleetOnBoard(fleet)
-            print player.returnBattlefield()
+                    print "You need to enter more ships:"
+                    if boats[0]:
+                        print "1. Patrol boat: %d" % boats[0]
+                    if boats[1]:
+                        print "2. Destroyer: %d" % boats[1]
+                    if boats[2]:
+                        print "3. Submarine: %d" % boats[2]
+                    if boats[3]:
+                        print "4. Carrier: %d" % boats[3]
+                    choice = raw_input("Choose option:")
+                    if choice == '1' or choice == '2' or choice == '3' or choice == '4':
+                        size = int(choice)
+                        print size
+                    else:
+                        print 'TY DOLBOEB.'
+                        continue
+                    coords = raw_input('Enter top cootdinate of the ship: x,y: ')
+                    x, y = coords.split(',')
+                    x, y = int(x) - 1, int(y) - 1
+                    list = []
+                    list.append((x, y))
+                    if size > 1:
+                        direction = raw_input('Do you want to place ship horizontally (h) or vertically (v)')
+                        if direction == 'h':
+                            for i in range(1, size):
+                                list.append((x, y + i))
+                        elif direction == 'v':
+                            for i in range(1, size):
+                                list.append((x + i, y))
+                        else:
+                            print "Ty dolboyeb."
+                            continue
+                        if not checkAddedShip(x, y, size, player.battlefield, direction):
+                            print "You can`t put ship in the place you want. Please take a look on battlefield."
+                            continue
+                    else:
+                        if not checkAddedShip(x, y, size, player.battlefield):
+                            print "You can`t put ship in the place you want. Please take a look on battlefield."
+                            continue
+                    fleet.addShip(Ship(size, list))
+                    player.addPlayersFleetOnBoard(fleet)
+                    print player.returnBattlefield()
+        else:
+            "Dyrak chtoli?"
+            continue
     ##### Game starts #####
     while True:
         pass
