@@ -197,7 +197,6 @@ if __name__ == "__main__":
 
 
 
-
         elif fleet_choice == "2":
             while True:
                 boats = fleet.checkFullfil()
