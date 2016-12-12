@@ -47,7 +47,7 @@ max_field_size = 40
 list_of_servers = ["server#1"]
 
 
-def checkNear(y,x,battlefield):
+def checkNear(x,y,battlefield):
     for i in [-1,0,1]:
         for j in [-1,0,1]:
             if 0<=x+i<len(battlefield) and 0<=y+j<len(battlefield):
@@ -55,7 +55,7 @@ def checkNear(y,x,battlefield):
                     return False
     return True
 
-def checkAddedShip(y,x,ship_size,battlefield, direction = ''):
+def checkAddedShip(x,y,ship_size,battlefield, direction = ''):
     if ship_size == 1:
         if not checkNear(x,y,battlefield):
             return False
@@ -63,11 +63,11 @@ def checkAddedShip(y,x,ship_size,battlefield, direction = ''):
         return False
     elif (direction == 'v') and ((x+ship_size)<len(battlefield)):
         for i in range(ship_size):
-            if not checkNear(x,y+i,battlefield):
+            if not checkNear(x+i,y,battlefield):
                 return False
     elif (direction == 'h') and ((y+ship_size)<len(battlefield)):
         for i in range(ship_size):
-            if not checkNear(x+i,y,battlefield):
+            if not checkNear(x,y+i,battlefield):
                 return False
     return True
 
@@ -171,7 +171,7 @@ if __name__ == "__main__":
                                     list = []
                                     list.append((x,y))
                                     for i in range(1, num_ships_by_type[1]):
-                                        list.append((x+i, y))
+                                        list.append((x, y+i))
                                     fleet.addShip(Ship(num_ships_by_type[1], list))
                                     print "I added ship of size %d with coord %s" % (num_ships_by_type[1], str(list))
                                     player.addPlayersFleetOnBoard(fleet)
@@ -184,7 +184,7 @@ if __name__ == "__main__":
                                     list = []
                                     list.append((x,y))
                                     for i in range(1, num_ships_by_type[1]):
-                                        list.append((x, y+i))
+                                        list.append((x+i, y))
                                     fleet.addShip(Ship(num_ships_by_type[1], list))
                                     print "I added ship of size %d with coord %s" % (num_ships_by_type[1], str(list))
                                     player.addPlayersFleetOnBoard(fleet)
@@ -229,10 +229,10 @@ if __name__ == "__main__":
                         direction = raw_input('Do you want to place ship horizontally (h) or vertically (v)')
                         if direction == 'h':
                             for i in range(1, size):
-                                list.append((x, y + i))
+                                list.append((x, y+i))
                         elif direction == 'v':
                             for i in range(1, size):
-                                list.append((x + i, y))
+                                list.append((x+i, y))
                         else:
                             print "Ty dolboyeb."
                             continue
@@ -245,6 +245,7 @@ if __name__ == "__main__":
                             continue
                     fleet.addShip(Ship(size, list))
                     player.addPlayersFleetOnBoard(fleet)
+                    print player.battlefield
                     print player.returnBattlefield()
         else:
             "Dyrak chtoli?"
