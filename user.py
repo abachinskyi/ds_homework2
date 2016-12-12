@@ -61,11 +61,11 @@ def checkAddedShip(x,y,ship_size,battlefield, direction = ''):
             return False
     elif ((direction == 'v') and ((x+ship_size)>len(battlefield))) or ((direction == 'h') and ((y+ship_size)>len(battlefield))):
         return False
-    elif (direction == 'v') and ((x+ship_size)<len(battlefield)):
+    elif (direction == 'v') and ((x+ship_size-1)<=len(battlefield)):
         for i in range(ship_size):
             if not checkNear(x+i,y,battlefield):
                 return False
-    elif (direction == 'h') and ((y+ship_size)<len(battlefield)):
+    elif (direction == 'h') and ((y+ship_size-1)<=len(battlefield)):
         for i in range(ship_size):
             if not checkNear(x,y+i,battlefield):
                 return False
