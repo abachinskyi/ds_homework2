@@ -59,13 +59,13 @@ def checkAddedShip(y,x,ship_size,battlefield, direction = ''):
     if ship_size == 1:
         if not checkNear(x,y,battlefield):
             return False
-    elif ((direction == 'v') and ((y+ship_size)>len(battlefield))) or ((direction == 'h') and ((x+ship_size)>len(battlefield))):
+    elif ((direction == 'v') and ((x+ship_size)>len(battlefield))) or ((direction == 'h') and ((y+ship_size)>len(battlefield))):
         return False
-    elif (direction == 'v') and ((y+ship_size)<len(battlefield)):
+    elif (direction == 'v') and ((x+ship_size)<len(battlefield)):
         for i in range(ship_size):
             if not checkNear(x,y+i,battlefield):
                 return False
-    elif (direction == 'h') and ((x+ship_size)<len(battlefield)):
+    elif (direction == 'h') and ((y+ship_size)<len(battlefield)):
         for i in range(ship_size):
             if not checkNear(x+i,y,battlefield):
                 return False
@@ -155,6 +155,7 @@ if __name__ == "__main__":
                         x = randint(0,len(player.battlefield) - 1)
                         y = randint(0, len(player.battlefield) - 1)
                         direction = randint(0,1)
+                        print "I generate %d, %d of dir %d" %(x,y,direction)
                         if num_ships_by_type[1] == 1:
                             if checkAddedShip(x,y,num_ships_by_type[1],player.battlefield):
                                 fleet.addShip(Ship(num_ships_by_type[1], [(x,y)]))
