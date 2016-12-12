@@ -149,13 +149,51 @@ if __name__ == "__main__":
         fleet_choice = raw_input("Your choice: ")
         if fleet_choice == "1":
             boats = fleet.checkFullfil()
-            for num_ships_by_type in (boats[3], boats[2], boats[1]):
-                for ship in range(num_ships_by_type):
+            for num_ships_by_type in ((boats[3],4), (boats[2],3), (boats[1],2), (boats[0],1)):
+                for ship in range(num_ships_by_type[0]):
                     while True:
                         x = randint(0,len(player.battlefield) - 1)
                         y = randint(0, len(player.battlefield) - 1)
                         direction = randint(0,1)
-                        #if checkAddedShip(x,y,
+                        if num_ships_by_type[1] == 1:
+                            if checkAddedShip(x,y,num_ships_by_type[1],player.battlefield):
+                                fleet.addShip(Ship(num_ships_by_type[1], [(x,y)]))
+                                print "I added ship of size %d with coord %s" % (num_ships_by_type[1], str([(x, y)]))
+                                player.addPlayersFleetOnBoard(fleet)
+                                break
+                            else:
+                                print "No"
+                                continue
+                        else:
+                            if direction == 0:
+                                if checkAddedShip(x, y, num_ships_by_type[1], player.battlefield, 'h'):
+                                    list = []
+                                    list.append((x,y))
+                                    for i in range(1, num_ships_by_type[1]):
+                                        list.append((x+i, y))
+                                    fleet.addShip(Ship(num_ships_by_type[1], list))
+                                    print "I added ship of size %d with coord %s" % (num_ships_by_type[1], str(list))
+                                    player.addPlayersFleetOnBoard(fleet)
+                                    break
+                                else:
+                                    print "No"
+                                    continue
+                            else:
+                                if checkAddedShip(x, y, num_ships_by_type[1], player.battlefield, 'v'):
+                                    list = []
+                                    list.append((x,y))
+                                    for i in range(1, num_ships_by_type[1]):
+                                        list.append((x, y+i))
+                                    fleet.addShip(Ship(num_ships_by_type[1], list))
+                                    print "I added ship of size %d with coord %s" % (num_ships_by_type[1], str(list))
+                                    player.addPlayersFleetOnBoard(fleet)
+                                    break
+                                else:
+                                    print "No"
+                                    continue
+            player.addPlayersFleetOnBoard(fleet)
+            print player.returnBattlefield()
+
 
 
 
