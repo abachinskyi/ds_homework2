@@ -1,16 +1,16 @@
-#from server import *
+# from server import *
 import pika
 import uuid
 from random import randint
 
+
 #########################____RPC____START_____#################################
 
 class User(object):
-
     def __init__(self):
         self.rpc_queue = 'rpc_queue'
         self.connection = pika.BlockingConnection(pika.ConnectionParameters(
-                host='localhost'))
+            host='localhost'))
 
         self.channel = self.connection.channel()
 
@@ -29,7 +29,7 @@ class User(object):
         self.corr_id = str(uuid.uuid4())
         request = '01_'
         self.channel.basic_publish(exchange='',
-                                   routing_key= self.rpc_queue,
+                                   routing_key=self.rpc_queue,
                                    properties=pika.BasicProperties(
                                        reply_to=self.callback_queue,
                                        correlation_id=self.corr_id,
@@ -39,13 +39,12 @@ class User(object):
             self.connection.process_data_events()
         return self.response
 
-    def callNewGame(self,n,p):
+    def callNewGame(self, n, p):
         self.response = None
         self.corr_id = str(uuid.uuid4())
-        request = '02_'+n+','+p
-        print request
+        request = '02_' + n + ',' + p
         self.channel.basic_publish(exchange='',
-                                   routing_key= self.rpc_queue,
+                                   routing_key=self.rpc_queue,
                                    properties=pika.BasicProperties(
                                        reply_to=self.callback_queue,
                                        correlation_id=self.corr_id,
@@ -55,12 +54,12 @@ class User(object):
             self.connection.process_data_events()
         return self.response
 
-    def callName(self,name):
+    def callName(self, name):
         self.response = None
         self.corr_id = str(uuid.uuid4())
-        request = '00_'+name
+        request = '00_' + name
         self.channel.basic_publish(exchange='',
-                                   routing_key= self.rpc_queue,
+                                   routing_key=self.rpc_queue,
                                    properties=pika.BasicProperties(
                                        reply_to=self.callback_queue,
                                        correlation_id=self.corr_id,
@@ -78,46 +77,40 @@ max_field_size = 40
 list_of_servers = ["server#1"]
 
 
-def checkNear(x,y,battlefield):
-    for i in [-1,0,1]:
-        for j in [-1,0,1]:
-            if 0<=x+i<len(battlefield) and 0<=y+j<len(battlefield):
-                if battlefield[x+i][y+j]==1:
+def checkNear(x, y, battlefield):
+    for i in [-1, 0, 1]:
+        for j in [-1, 0, 1]:
+            if 0 <= x + i < len(battlefield) and 0 <= y + j < len(battlefield):
+                if battlefield[x + i][y + j] == 1:
                     return False
     return True
 
-def checkAddedShip(x,y,ship_size,battlefield, direction = ''):
+
+def checkAddedShip(x, y, ship_size, battlefield, direction=''):
     if ship_size == 1:
-        if not checkNear(x,y,battlefield):
+        if not checkNear(x, y, battlefield):
             return False
-    elif ((direction == 'v') and ((x+ship_size)>len(battlefield))) or ((direction == 'h') and ((y+ship_size)>len(battlefield))):
+    elif ((direction == 'v') and ((x + ship_size) > len(battlefield))) or (
+        (direction == 'h') and ((y + ship_size) > len(battlefield))):
         return False
-    elif (direction == 'v') and ((x+ship_size-1)<=len(battlefield)):
+    elif (direction == 'v') and ((x + ship_size - 1) <= len(battlefield)):
         for i in range(ship_size):
-            if not checkNear(x+i,y,battlefield):
+            if not checkNear(x + i, y, battlefield):
                 return False
-    elif (direction == 'h') and ((y+ship_size-1)<=len(battlefield)):
+    elif (direction == 'h') and ((y + ship_size - 1) <= len(battlefield)):
         for i in range(ship_size):
-            if not checkNear(x,y+i,battlefield):
+            if not checkNear(x, y + i, battlefield):
                 return False
     return True
-
-
-
-
-
-
-
-
 
 
 if __name__ == "__main__":
 
-#########################____RPC____START_____#################################
+    #########################____RPC____START_____#################################
     user = User()
     print "Hello! Welcome to the Battleship Game."
     print "What server would you like to join?"
-#####################################################################################################
+    #####################################################################################################
     while True:
         nickname = raw_input("Enter your nickname: ")
         print " [x] Requesting NAME"
@@ -128,10 +121,10 @@ if __name__ == "__main__":
         if response == 'OK':
             print 'Congratulations!'
             break
-#####################################################################################################
+            #####################################################################################################
     while True:
-        gameList = user.callGameList()
-        if gameList:
+        response = user.callGameList()
+        if response:
             while True:
                 print "What would you like to do?"
                 print "1. Create new game."
@@ -145,12 +138,13 @@ if __name__ == "__main__":
         else:
             choice = 1
 
-#####################################################################################################
+        #####################################################################################################
 
         if choice == 1:
             print "To create a new game, You need to enter the field size you want to play on and number of players."
             while True:
-                print "Notice that field size should be between %d and %d and number of players should be at least two." % (min_field_size, max_field_size)
+                print "Notice that field size should be between %d and %d and number of players should be at least two." % (
+                min_field_size, max_field_size)
                 size_of_field = raw_input("Field size: ")
                 number_of_players = raw_input('Number of players:')
                 if min_field_size <= int(size_of_field) <= max_field_size and int(number_of_players) >= 2:
@@ -158,25 +152,27 @@ if __name__ == "__main__":
                 else:
                     print "You have entered field size that is out of bounds or wrong number of players. Please try again."
                     continue
-            # Creation of new game
-                response = user.callNewGame(size_of_field,number_of_players)
+                    # Creation of new game
+                response = user.callNewGame(size_of_field, number_of_players)
                 if response == 'OK!':
-                    print 'The Game has been created!'
+                    print 'GOOD!'
                     break
                 else:
-                    print 'Connection problem. Try again!'
+                    print 'BAD!'
                     continue
 
 
 
-#####################################################################################################
+                    #####################################################################################################
 
         elif choice == 2:
             print "What game would you like to join?"
             while True:
-                print gameList
+                print server.getGamesList()
                 game_number = raw_input("Your choice: ")
-
+                if 0 <= int(game_number) < len(server.getGamesList()):
+                    number_of_game = int(game_number) - 1
+                    break
                 else:
                     print "There is no such option. Please try again."
             print game_number
@@ -190,8 +186,7 @@ if __name__ == "__main__":
 
 
 
-#########################____RPC____END_____####################################
-
+            #########################____RPC____END_____####################################
 
     """
     numb = 1

@@ -3,29 +3,11 @@ import pika
 import math
 
 #########################____RPC____START_____##################################
-"""
-connection = pika.BlockingConnection(pika.ConnectionParameters(
-        host='localhost'))
 
-channel = connection.channel()
 
-channel.queue_declare(queue='rpc_queue')
 
-def on_request(ch, method, props, body):
-    n = int(body)
-    game = Game(n)
 
-    print " [.] fib(%s)"  % (n,)
-    response = 'OK!'         # call of the function that is needed
 
-    ch.basic_publish(exchange='',
-                     routing_key=props.reply_to,
-                     properties=pika.BasicProperties(correlation_id = \
-                                                     props.correlation_id),
-                     body=str(response))
-    ch.basic_ack(delivery_tag = method.delivery_tag)
-    return game
-"""
 #########################____RPC____END_____####################################
 
 global _game_counter
@@ -37,6 +19,62 @@ class Server:
         self.game_list = []
         self.player_nicknames_list = []
 
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters(
+            host='localhost'))
+
+        self.channel = self.connection.channel()
+
+        self.channel.queue_declare(queue='rpc_queue')
+
+    def on_request(self, ch, method, props, body):
+        request = body
+        id, message = request.split('_')
+
+#####################################################################################################
+
+        if id == '00':
+            player_name = message
+            if player_name in server.player_nicknames_list:
+                ch.basic_publish(exchange='',
+                                 routing_key=props.reply_to,
+                                 properties=pika.BasicProperties(correlation_id= \
+                                                                     props.correlation_id),
+                                 body='Wrong NAME')
+            else:
+                server.player_nicknames_list.append(player_name)
+                ch.basic_publish(exchange='',
+                                 routing_key=props.reply_to,
+                                 properties=pika.BasicProperties(correlation_id= \
+                                                                     props.correlation_id),
+                                 body='OK')
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+
+#####################################################################################################
+
+        if id == '01':
+            response = server.getGamesList()
+            ch.basic_publish(exchange='',
+                             routing_key=props.reply_to,
+                             properties=pika.BasicProperties(correlation_id= \
+                                                                 props.correlation_id),
+                             body=str(response))
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+
+#####################################################################################################
+
+        if id == '02':
+            field, number_of_players = message.split(',')
+            game = Game(int(field),int(number_of_players))
+            response = 'OK!'  # call of the function that is needed
+            ch.basic_publish(exchange='',
+                             routing_key=props.reply_to,
+                             properties=pika.BasicProperties(correlation_id= \
+                                                                 props.correlation_id),
+                             body=str(response))
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+            self.game_list.append(game)
+
+#####################################################################################################
     def getServerName(self):
         return self.server_name
 
@@ -67,9 +105,10 @@ class Server:
 
 
 class Game:
-    def __init__(self, field_size, name = ""):
+    def __init__(self, field_size, numOfPlayers, name = ""):
         #size of field initialization
         self.size = field_size
+        self.numPlayers = numOfPlayers
         #name initialization
         if name:
             self.game_name = name
@@ -244,31 +283,18 @@ class Ship:
 if __name__ == "__main__":
 
 #########################____RPC____START_____#################################
-    """
+    server = Server()
+    while True:
+        try:
+            server.channel.basic_qos(prefetch_count=1)
+            server.channel.basic_consume(server.on_request, queue='rpc_queue')
+            print " [x] Awaiting RPC requests"
+            server.channel.start_consuming()
+        except:
+            pass
 
-    channel.basic_qos(prefetch_count=1)
-    channel.basic_consume(on_request, queue='rpc_queue')
-
-    print " [x] Awaiting RPC requests"
-    channel.start_consuming()
-"""
 #########################____RPC____END_____####################################
 
-    server = Server()
-    #print server.getServerName()
-    game1 = Game(10)
-    game2 = Game(10)
-    server.createGame(game1)
-    server.addGame(game2)
-    patrol_boat = Ship(1, [(0,0)])
-    submarine = Ship(3, [(2, 3),(3,3),(4,3)])
-    fleet = Fleet(game1.size)
-    fleet.addShip(patrol_boat)
-    fleet.addShip(submarine)
-    print fleet.getNumberOfShips()
-    player = Player('Dimas', game1.size)
-    player.addPlayersFleetOnBoard(fleet)
-    #print player.returnBattlefield()
-    game1.addPlayer(player)
-    print fleet.checkFullfil()
+
+
 
