@@ -53,6 +53,7 @@ class Server:
 
         if id == '01':
             response = server.getGamesList()
+            print response
             ch.basic_publish(exchange='',
                              routing_key=props.reply_to,
                              properties=pika.BasicProperties(correlation_id= \
@@ -63,8 +64,11 @@ class Server:
 #####################################################################################################
 
         if id == '02':
-            field, number_of_players = message.split(',')
+            field, message = message.split(',')
+            number_of_players, playerName = message.split('.')
             game = Game(int(field),int(number_of_players))
+            self.game_list.append(game)
+            game.addPlayer(Player(playerName,game.size))
             response = 'OK!'  # call of the function that is needed
             ch.basic_publish(exchange='',
                              routing_key=props.reply_to,
@@ -72,7 +76,21 @@ class Server:
                                                                  props.correlation_id),
                              body=str(response))
             ch.basic_ack(delivery_tag=method.delivery_tag)
-            self.game_list.append(game)
+
+
+#####################################################################################################
+
+        if id == '03':
+            Pname, Gnumber = message.split(',')
+            game = server.game_list[int(Gnumber)-1]
+            game.addPlayer(Player(Pname,game.size))
+            response = str(game.size)
+            ch.basic_publish(exchange='',
+                             routing_key=props.reply_to,
+                             properties=pika.BasicProperties(correlation_id= \
+                                                                 props.correlation_id),
+                             body=str(response))
+            ch.basic_ack(delivery_tag=method.delivery_tag)
 
 #####################################################################################################
     def getServerName(self):
@@ -132,6 +150,17 @@ class Player:
     def __init__(self, nickname, game_field_size):
         self.nickname = nickname
         self.battlefield = self.createBattlefield(game_field_size)
+
+    def StringToBattelfield(self,stringBattle):
+        battlefield = []
+        i = 0
+        while i < len(stringBattle):
+            x = []
+            for j in range(len(self.battlefield)):
+                x.append(stringBattle[i + j])
+            i += len(self.battlefield)
+            battlefield.append(x)
+        return battlefield
 
     def getNickname(self):
         return self.nickname
