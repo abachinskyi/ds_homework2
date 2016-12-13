@@ -3,7 +3,6 @@ import uuid
 from random import randint
 import math
 
-
 #########################____RPC____START_____#################################
 
 class Fleet:
