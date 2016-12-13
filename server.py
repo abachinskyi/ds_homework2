@@ -26,6 +26,7 @@ class Server:
 
         self.channel.queue_declare(queue='rpc_queue')
 
+
     def on_request(self, ch, method, props, body):
         request = body
         id, message = request.split('_')
@@ -42,11 +43,15 @@ class Server:
                                  body='Wrong NAME')
             else:
                 server.player_nicknames_list.append(player_name)
+                self.channel.queue_declare(queue=player_name)
                 ch.basic_publish(exchange='',
                                  routing_key=props.reply_to,
                                  properties=pika.BasicProperties(correlation_id= \
                                                                      props.correlation_id),
                                  body='OK')
+                ch.basic_publish(exchange='',
+                                routing_key=player_name,
+                                body='connected')
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
 #####################################################################################################

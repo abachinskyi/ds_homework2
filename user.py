@@ -96,6 +96,7 @@ class User(object):
         self.fieldSize = 0
         self.battlefield = None
         self.rpc_queue = 'rpc_queue'
+        self.state = ''
         self.connection = pika.BlockingConnection(pika.ConnectionParameters(
             host='localhost'))
 
@@ -103,6 +104,7 @@ class User(object):
 
         result = self.channel.queue_declare(exclusive=True)
         self.callback_queue = result.method.queue
+
 
         self.channel.basic_consume(self.on_response, no_ack=True,
                                    queue=self.callback_queue)
@@ -198,6 +200,7 @@ class User(object):
         return self.response
 
     def callName(self, name):
+        self.channel.queue_declare(queue=name)
         self.response = None
         self.corr_id = str(uuid.uuid4())
         request = '00_' + name
@@ -404,8 +407,6 @@ if __name__ == "__main__":
             user.addPlayersFleetOnBoard(fleet)
             print user.returnBattlefield()
             break
-
-
 
         elif fleet_choice == "2":
             while True:
