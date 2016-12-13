@@ -2,7 +2,7 @@ import pika
 import uuid
 from random import randint
 import math
-
+import time
 #########################____RPC____START_____#################################
 
 class Fleet:
@@ -95,12 +95,12 @@ class User(object):
         self.fieldSize = 0
         self.battlefield = None
         self.rpc_queue = 'rpc_queue'
-        self.state = ''
+        self.state = 'not connected'
         self.connection = pika.BlockingConnection(pika.ConnectionParameters(
             host='localhost'))
 
         self.channel = self.connection.channel()
-        self.channel.queue_declare(queue='user_state')
+
 
         result = self.channel.queue_declare(exclusive=True)
         self.callback_queue = result.method.queue
@@ -109,9 +109,7 @@ class User(object):
         self.channel.basic_consume(self.on_response, no_ack=True,
                                    queue=self.callback_queue)
 
-        self.channel.basic_consume(self.getState,
-                                   queue='user_state',
-                                   no_ack=True)
+
 
     def getState(self, ch, method, properties, body):
         self.state = body
@@ -237,6 +235,39 @@ class User(object):
             self.connection.process_data_events()
         return self.response
 
+    def callSendBattlefield(self):
+        self.response = None
+        self.corr_id = str(uuid.uuid4())
+        bat = self.BattlefieldToString()
+        request = '04_'+self.name+','+bat
+        self.channel.basic_publish(exchange='',
+                                   routing_key=self.rpc_queue,
+                                   properties=pika.BasicProperties(
+                                       reply_to=self.callback_queue,
+                                       correlation_id=self.corr_id,
+                                   ),
+                                   body=str(request))
+        while self.response is None:
+            self.connection.process_data_events()
+        return self.response
+
+    def callCheckGame(self):
+        self.response = None
+        self.corr_id = str(uuid.uuid4())
+        request = '05_'+self.name
+        self.channel.basic_publish(exchange='',
+                                   routing_key=self.rpc_queue,
+                                   properties=pika.BasicProperties(
+                                       reply_to=self.callback_queue,
+                                       correlation_id=self.corr_id,
+                                   ),
+                                   body=str(request))
+        while self.response is None:
+            self.connection.process_data_events()
+        return self.response
+
+
+
 
 #########################____RPC____END_____####################################
 
@@ -279,193 +310,237 @@ if __name__ == "__main__":
     user = User()
     print "Hello! Welcome to the Battleship Game."
     print "What server would you like to join?"
-
-#####################################################################################################
-
     while True:
-        nickname = raw_input("Enter your nickname: ")
-        user.name = nickname
-        print " [x] Requesting NAME"
-        response = user.callName(nickname)
+        time.sleep(2)
         print user.state
-        if response == 'Wrong NAME':
-            print 'This name already exists!'
-            continue
-        if response == 'OK':
-            print 'Congratulations!'
-            break
 
 #####################################################################################################
 
-    while True:
-        gameList = user.callGameList()
-        if gameList:
+        if user.state == 'not connected':
             while True:
-                print "What would you like to do?"
-                print "1. Create new game."
-                print "2. Enter existing game."
-                choice = int(raw_input('Your choice:'))
-                if choice == 1 or choice == 2:
-                    break
-                else:
-                    print 'Wrong decision!'
+                nickname = raw_input("Enter your nickname: ")
+                user.name = nickname
+                user.channel.queue_declare(queue=user.name)
+                user.channel.basic_consume(user.getState,
+                                           queue=user.name,
+                                           no_ack=True)
+                print " [x] Requesting NAME"
+                response = user.callName(nickname)
+                if response == 'Wrong NAME':
+                    print 'This name already exists!'
                     continue
-        else:
-            choice = 1
+                if response == 'OK':
+                    print 'Congratulations!'
+                    break
 
-#####################################################################################################
-
-        if choice == 1:
-            print "To create a new game, You need to enter the field size you want to play on and number of players."
+        #####################################################################################################
+        if user.state == 'connected':
             while True:
-                print "Notice that field size should be between %d and %d and number of players should be at least two." % (
-                min_field_size, max_field_size)
-                size_of_field = raw_input("Field size: ")
-                user.fieldSize = int(size_of_field)
-                number_of_players = raw_input('Number of players:')
-                if min_field_size <= int(size_of_field) <= max_field_size and int(number_of_players) >= 2:
-                    pass
-                else:
-                    print "You have entered field size that is out of bounds or wrong number of players. Please try again."
-                    continue
-                    # Creation of new game
-                response = user.callNewGame(size_of_field, number_of_players)
-                if response == 'OK!':
-                    print 'The Game has been created!'
-                    break
-                else:
-                    print 'Connection problem. Try again!'
-                    continue
-            break
-
-#####################################################################################################
-
-        elif choice == 2:
-            print "What game would you like to join?"
-            while True:
-                print gameList
-                game_number = raw_input("Your choice: ")
-                response = user.callEnterGame(user.name, game_number)
-                if response:
-                    user.fieldSize = int(response)
-                    print 'You have joined The GAME!'
-                    break
-                else:
-                    print "There is no such option. Please try again."
-                    continue
-            break
-        else:
-            print "There is no such option. Please enter again."
-            continue
-
-#####################################################################################################
-
-    user.battlefield = user.createBattlefield(user.fieldSize)
-    fleet = Fleet(user.fieldSize)
-    while True:
-        print "What would you like to do:"
-        print "1. Generate random fleet."
-        print "2. Create your own fleet."
-        fleet_choice = raw_input("Your choice: ")
-        if fleet_choice == "1":
-            boats = fleet.checkFullfil()
-            for num_ships_by_type in ((boats[3], 4), (boats[2], 3), (boats[1], 2), (boats[0], 1)):
-                for ship in range(num_ships_by_type[0]):
+                gameList = user.callGameList()
+                if gameList:
                     while True:
-                        x = randint(0, len(user.battlefield) - 1)
-                        y = randint(0, len(user.battlefield) - 1)
-                        direction = randint(0, 1)
-                        #print "I generate %d, %d of dir %d" % (x, y, direction)
-                        if num_ships_by_type[1] == 1:
-                            if checkAddedShip(x, y, num_ships_by_type[1], user.battlefield):
-                                fleet.addShip(Ship(num_ships_by_type[1], [(x, y)]))
-                                #print "I added ship of size %d with coord %s" % (num_ships_by_type[1], str([(x, y)]))
-                                user.addPlayersFleetOnBoard(fleet)
-                                break
-                            else:
-                                #print "No"
-                                continue
+                        print "What would you like to do?"
+                        print "1. Create new game."
+                        print "2. Enter existing game."
+                        choice = int(raw_input('Your choice:'))
+                        if choice == 1 or choice == 2:
+                            break
                         else:
-                            if direction == 0:
-                                if checkAddedShip(x, y, num_ships_by_type[1], user.battlefield, 'h'):
-                                    list = []
-                                    list.append((x, y))
-                                    for i in range(1, num_ships_by_type[1]):
-                                        list.append((x, y + i))
-                                    fleet.addShip(Ship(num_ships_by_type[1], list))
-                                    #print "I added ship of size %d with coord %s" % (num_ships_by_type[1], str(list))
-                                    user.addPlayersFleetOnBoard(fleet)
-                                    break
-                                else:
-                                    #print "No"
-                                    continue
-                            else:
-                                if checkAddedShip(x, y, num_ships_by_type[1], user.battlefield, 'v'):
-                                    list = []
-                                    list.append((x, y))
-                                    for i in range(1, num_ships_by_type[1]):
-                                        list.append((x + i, y))
-                                    fleet.addShip(Ship(num_ships_by_type[1], list))
-                                    #print "I added ship of size %d with coord %s" % (num_ships_by_type[1], str(list))
-                                    user.addPlayersFleetOnBoard(fleet)
-                                    break
-                                else:
-                                    #print "No"
-                                    continue
-            user.addPlayersFleetOnBoard(fleet)
-            print user.returnBattlefield()
-            break
+                            print 'Wrong decision!'
+                            continue
+                else:
+                    choice = 1
 
-        elif fleet_choice == "2":
+        #####################################################################################################
+
+                if choice == 1:
+                    print "To create a new game, You need to enter the field size you want to play on and number of players."
+                    while True:
+                        print "Notice that field size should be between %d and %d and number of players should be at least two." % (
+                        min_field_size, max_field_size)
+                        size_of_field = raw_input("Field size: ")
+                        user.fieldSize = int(size_of_field)
+                        number_of_players = raw_input('Number of players:')
+                        if min_field_size <= int(size_of_field) <= max_field_size and int(number_of_players) >= 2:
+                            pass
+                        else:
+                            print "You have entered field size that is out of bounds or wrong number of players. Please try again."
+                            continue
+                            # Creation of new game
+                        response = user.callNewGame(size_of_field, number_of_players)
+                        if response == 'OK!':
+                            print 'The Game has been created!'
+                            break
+                        else:
+                            print 'Connection problem. Try again!'
+                            continue
+                    break
+
+        #####################################################################################################
+
+                elif choice == 2:
+                    print "What game would you like to join?"
+                    while True:
+                        print gameList
+                        game_number = raw_input("Your choice: ")
+                        response = user.callEnterGame(user.name, game_number)
+                        if response:
+                            user.fieldSize = int(response)
+                            print 'You have joined The GAME!'
+                            break
+                        else:
+                            print "There is no such option. Please try again."
+                            continue
+                    break
+                else:
+                    print "There is no such option. Please enter again."
+                    continue
+
+        #####################################################################################################
+
+        if user.state == 'joined':
+            user.battlefield = user.createBattlefield(user.fieldSize)
+            fleet = Fleet(user.fieldSize)
             while True:
                 boats = fleet.checkFullfil()
                 if boats == (0, 0, 0, 0):
                     break
-                else:
-                    print "You need to enter more ships:"
-                    if boats[0]:
-                        print "1. Patrol boat: %d" % boats[0]
-                    if boats[1]:
-                        print "2. Destroyer: %d" % boats[1]
-                    if boats[2]:
-                        print "3. Submarine: %d" % boats[2]
-                    if boats[3]:
-                        print "4. Carrier: %d" % boats[3]
-                    choice = raw_input("Choose option:")
-                    if choice == '1' or choice == '2' or choice == '3' or choice == '4':
-                        size = int(choice)
-                        print size
-                    else:
-                        print 'Wrong option.'
-                        continue
-                    coords = raw_input('Enter top cootdinate of the ship: x,y: ')
-                    x, y = coords.split(',')
-                    x, y = int(x) - 1, int(y) - 1
-                    list = []
-                    list.append((x, y))
-                    if size > 1:
-                        direction = raw_input('Do you want to place ship horizontally (h) or vertically (v)')
-                        if direction == 'h':
-                            for i in range(1, size):
-                                list.append((x, y + i))
-                        elif direction == 'v':
-                            for i in range(1, size):
-                                list.append((x + i, y))
-                        else:
-                            print "Wrong option."
-                            continue
-                        if not checkAddedShip(x, y, size, user.battlefield, direction):
-                            print "You can`t put ship in the place you want. Please take a look on battlefield."
-                            continue
-                    else:
-                        if not checkAddedShip(x, y, size, user.battlefield):
-                            print "You can`t put ship in the place you want. Please take a look on battlefield."
-                            continue
-                    fleet.addShip(Ship(size, list))
+                print "What would you like to do:"
+                print "1. Generate random fleet."
+                print "2. Create your own fleet."
+                fleet_choice = raw_input("Your choice: ")
+                if fleet_choice == "1":
+                    boats = fleet.checkFullfil()
+                    for num_ships_by_type in ((boats[3], 4), (boats[2], 3), (boats[1], 2), (boats[0], 1)):
+                        for ship in range(num_ships_by_type[0]):
+                            while True:
+                                x = randint(0, len(user.battlefield) - 1)
+                                y = randint(0, len(user.battlefield) - 1)
+                                direction = randint(0, 1)
+                                #print "I generate %d, %d of dir %d" % (x, y, direction)
+                                if num_ships_by_type[1] == 1:
+                                    if checkAddedShip(x, y, num_ships_by_type[1], user.battlefield):
+                                        fleet.addShip(Ship(num_ships_by_type[1], [(x, y)]))
+                                        #print "I added ship of size %d with coord %s" % (num_ships_by_type[1], str([(x, y)]))
+                                        user.addPlayersFleetOnBoard(fleet)
+                                        break
+                                    else:
+                                        #print "No"
+                                        continue
+                                else:
+                                    if direction == 0:
+                                        if checkAddedShip(x, y, num_ships_by_type[1], user.battlefield, 'h'):
+                                            list = []
+                                            list.append((x, y))
+                                            for i in range(1, num_ships_by_type[1]):
+                                                list.append((x, y + i))
+                                            fleet.addShip(Ship(num_ships_by_type[1], list))
+                                            #print "I added ship of size %d with coord %s" % (num_ships_by_type[1], str(list))
+                                            user.addPlayersFleetOnBoard(fleet)
+                                            break
+                                        else:
+                                            #print "No"
+                                            continue
+                                    else:
+                                        if checkAddedShip(x, y, num_ships_by_type[1], user.battlefield, 'v'):
+                                            list = []
+                                            list.append((x, y))
+                                            for i in range(1, num_ships_by_type[1]):
+                                                list.append((x + i, y))
+                                            fleet.addShip(Ship(num_ships_by_type[1], list))
+                                            #print "I added ship of size %d with coord %s" % (num_ships_by_type[1], str(list))
+                                            user.addPlayersFleetOnBoard(fleet)
+                                            break
+                                        else:
+                                            #print "No"
+                                            continue
                     user.addPlayersFleetOnBoard(fleet)
-                    print user.returnBattlefield()
-        else:
-            "Dyrak chtoli?"
-            continue
+                    response = user.callSendBattlefield()
+                    if response == 'OK!':
+                        print user.returnBattlefield()
+                        break
+                    else:
+                        print 'Connection problem!'
+                        continue
 
-    #########################____RPC____END_____####################################
+                elif fleet_choice == "2":
+                    while True:
+                        boats = fleet.checkFullfil()
+                        if boats == (0, 0, 0, 0):
+                            break
+                        else:
+                            print "You need to enter more ships:"
+                            if boats[0]:
+                                print "1. Patrol boat: %d" % boats[0]
+                            if boats[1]:
+                                print "2. Destroyer: %d" % boats[1]
+                            if boats[2]:
+                                print "3. Submarine: %d" % boats[2]
+                            if boats[3]:
+                                print "4. Carrier: %d" % boats[3]
+                            choice = raw_input("Choose option:")
+                            if choice == '1' or choice == '2' or choice == '3' or choice == '4':
+                                size = int(choice)
+                                print size
+                            else:
+                                print 'Wrong option.'
+                                continue
+                            coords = raw_input('Enter top cootdinate of the ship: x,y: ')
+                            x, y = coords.split(',')
+                            x, y = int(x) - 1, int(y) - 1
+                            list = []
+                            list.append((x, y))
+                            if size > 1:
+                                direction = raw_input('Do you want to place ship horizontally (h) or vertically (v)')
+                                if direction == 'h':
+                                    for i in range(1, size):
+                                        list.append((x, y + i))
+                                elif direction == 'v':
+                                    for i in range(1, size):
+                                        list.append((x + i, y))
+                                else:
+                                    print "Wrong option."
+                                    continue
+                                if not checkAddedShip(x, y, size, user.battlefield, direction):
+                                    print "You can`t put ship in the place you want. Please take a look on battlefield."
+                                    continue
+                            else:
+                                if not checkAddedShip(x, y, size, user.battlefield):
+                                    print "You can`t put ship in the place you want. Please take a look on battlefield."
+                                    continue
+                            fleet.addShip(Ship(size, list))
+                            user.addPlayersFleetOnBoard(fleet)
+                            response = user.callSendBattlefield()
+                            if response == 'OK!':
+                                print user.returnBattlefield()
+                                break
+                            else:
+                                print 'Connection problem!'
+                                continue
+                else:
+                    "Dyrak chtoli?"
+                    continue
+
+        if user.state == 'wait for game start':
+
+            while True:
+                response = user.callCheckGame()
+                print user.state
+                if response == 'OK!':
+                    break
+
+
+        if user.state == 'your turn':
+
+            print 'POEHALI!'
+
+
+        if user.state == 'not your turn':
+
+            pass
+
+
+
+
+
+            #########################____RPC____END_____####################################

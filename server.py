@@ -43,9 +43,9 @@ class Server:
                                  body='Wrong NAME')
             else:
                 server.player_nicknames_list.append(player_name)
-                self.channel.queue_declare(queue='user_state')
+                self.channel.queue_declare(queue=player_name)
                 ch.basic_publish(exchange='',
-                                routing_key='user_state',
+                                routing_key=player_name,
                                 body='connected')
                 ch.basic_publish(exchange='',
                                  routing_key=props.reply_to,
@@ -75,6 +75,10 @@ class Server:
             self.game_list.append(game)
             game.addPlayer(Player(playerName,game.size))
             response = 'OK!'  # call of the function that is needed
+            #self.channel.queue_declare(queue=playerName)
+            ch.basic_publish(exchange='',
+                             routing_key=playerName,
+                             body='joined')
             ch.basic_publish(exchange='',
                              routing_key=props.reply_to,
                              properties=pika.BasicProperties(correlation_id= \
@@ -90,6 +94,10 @@ class Server:
             game = server.game_list[int(Gnumber)-1]
             game.addPlayer(Player(Pname,game.size))
             response = str(game.size)
+            #self.channel.queue_declare(queue=Pname)
+            ch.basic_publish(exchange='',
+                             routing_key=Pname,
+                             body='joined')
             ch.basic_publish(exchange='',
                              routing_key=props.reply_to,
                              properties=pika.BasicProperties(correlation_id= \
@@ -97,7 +105,61 @@ class Server:
                              body=str(response))
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
-#####################################################################################################
+######################################################################################################
+
+        if id == '04':
+            Pname, BattleF = message.split(',')
+            for game in server.game_list:
+                for player in game.player_list:
+                    if player.nickname == Pname:
+                        curr_game = game
+            for player in curr_game.player_list:
+                if player.nickname == Pname:
+                    player.battlefield = player.StringToBattelfield(BattleF)
+                    curr_game.counter += 1
+            response = 'OK!'
+            #self.channel.queue_declare(queue=Pname)
+            ch.basic_publish(exchange='',
+                             routing_key=Pname,
+                             body='wait for game start')
+            ch.basic_publish(exchange='',
+                             routing_key=props.reply_to,
+                             properties=pika.BasicProperties(correlation_id= \
+                                                                 props.correlation_id),
+                             body=str(response))
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+
+
+####################################################################################################
+
+        if id == '05':
+             response = 'OK!'
+             for game in server.game_list:
+                 for player in game.player_list:
+                     if player.nickname == message:
+                         curr_game = game
+             print curr_game.counter
+             if curr_game.counter == curr_game.numPlayers:
+                 if curr_game.player_list[0].nickname == message:
+                     # self.channel.queue_declare(queue=curr_game.player_list[numb].nickname)
+                     ch.basic_publish(exchange='',
+                                      routing_key=message,
+                                      body='your turn')
+                 else:
+                     ch.basic_publish(exchange='',
+                                      routing_key=message,
+                                      body='not your turn')
+             ch.basic_publish(exchange='',
+                              routing_key=props.reply_to,
+                              properties=pika.BasicProperties(correlation_id= \
+                                                                  props.correlation_id),
+                              body=str(response))
+             ch.basic_ack(delivery_tag=method.delivery_tag)
+
+
+
+
+                     ##################################################################################################
     def checkHit(self, x, y, curr_player_name, game_number):
         hit = False
         message = ''
@@ -146,6 +208,7 @@ class Game:
         #size of field initialization
         self.size = field_size
         self.numPlayers = numOfPlayers
+        self.counter = 0
         #name initialization
         if name:
             self.game_name = name
