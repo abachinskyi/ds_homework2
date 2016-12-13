@@ -101,6 +101,7 @@ class User(object):
             host='localhost'))
 
         self.channel = self.connection.channel()
+        self.channel.queue_declare(queue='user_state')
 
         result = self.channel.queue_declare(exclusive=True)
         self.callback_queue = result.method.queue
@@ -108,6 +109,13 @@ class User(object):
 
         self.channel.basic_consume(self.on_response, no_ack=True,
                                    queue=self.callback_queue)
+
+        self.channel.basic_consume(self.getState,
+                                   queue='user_state',
+                                   no_ack=True)
+
+    def getState(self, ch, method, properties, body):
+        self.state = body
 
     def BattlefieldToString(self):
         string = ''
@@ -280,6 +288,7 @@ if __name__ == "__main__":
         user.name = nickname
         print " [x] Requesting NAME"
         response = user.callName(nickname)
+        print user.state
         if response == 'Wrong NAME':
             print 'This name already exists!'
             continue

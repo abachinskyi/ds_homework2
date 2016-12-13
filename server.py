@@ -43,15 +43,15 @@ class Server:
                                  body='Wrong NAME')
             else:
                 server.player_nicknames_list.append(player_name)
-                self.channel.queue_declare(queue=player_name)
+                self.channel.queue_declare(queue='user_state')
+                ch.basic_publish(exchange='',
+                                routing_key='user_state',
+                                body='connected')
                 ch.basic_publish(exchange='',
                                  routing_key=props.reply_to,
                                  properties=pika.BasicProperties(correlation_id= \
                                                                      props.correlation_id),
                                  body='OK')
-                ch.basic_publish(exchange='',
-                                routing_key=player_name,
-                                body='connected')
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
 #####################################################################################################
@@ -98,6 +98,20 @@ class Server:
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
 #####################################################################################################
+    def checkHit(self, x, y, curr_player_name, game_number):
+        hit = False
+        message = ''
+        game = server.game_list[game_number - 1]
+        for player in game.player_list:
+            if player.nickname != curr_player_name:
+                if player.battlefield[x][y] == '1':
+                    player.battlefield[x][y] = '2'
+                    hit = True
+                    game.dict_of_hits[player.nickname].append((x,y))
+                    message += player.nickname + ','
+        return hit, message
+
+
     def getServerName(self):
         return self.server_name
 
@@ -141,9 +155,11 @@ class Game:
             _game_counter += 1
         #list of players initialization
         self.player_list = []
+        self.dict_of_hits = {}
 
     def addPlayer(self, player):
         self.player_list.append(player)
+        self.dict_of_hits[player.nickname] = []
 
     def getPlayerNicknames(self):
         list_nicknames = []
