@@ -18,6 +18,7 @@ class Server:
         self.server_name = name
         self.game_list = []
         self.player_nicknames_list = []
+        self.playerWhoHit = []
 
         self.connection = pika.BlockingConnection(pika.ConnectionParameters(
             host='localhost'))
@@ -132,7 +133,7 @@ class Server:
 
 ####################################################################################################
 
-        if id == '05':
+        if id == '05' or id == '08':
              response = 'OK!'
              for game in server.game_list:
                  for player in game.player_list:
@@ -156,14 +157,82 @@ class Server:
                               body=str(response))
              ch.basic_ack(delivery_tag=method.delivery_tag)
 
+##################################################################################################
+
+        if id == '06':
+             response = 'OK!'
+             for game in server.game_list:
+                 for player in game.player_list:
+                     if player.nickname == message:
+                         curr_game = game
+                         curr_game.player_list.remove(player)
+             ch.basic_publish(exchange='',
+                              routing_key=message,
+                              body='game over')
+             ch.basic_publish(exchange='',
+                              routing_key=props.reply_to,
+                              properties=pika.BasicProperties(correlation_id= \
+                                                                  props.correlation_id),
+                              body=str(response))
+             ch.basic_ack(delivery_tag=method.delivery_tag)
+
+#################################################################################################
+
+        if id == '07':
+             Pname,message = message.split('.')
+             x,y = message.split(',')
+             x, y = int(x), int(y)
+             for game in server.game_list:
+                 for player in game.player_list:
+                     if player.nickname == Pname:
+                         curr_game = game
+             hit, output = self.checkHit(x, y, Pname, curr_game)
+             if hit == True:
+                 response ='HIT_'+output
+                 ch.basic_publish(exchange='',
+                                  routing_key=props.reply_to,
+                                  properties=pika.BasicProperties(correlation_id= \
+                                                                      props.correlation_id),
+                                  body=str(response))
+                 ch.basic_ack(delivery_tag=method.delivery_tag)
+             else:
+                 response = 'miss'
+                 curr_game.changeList()
+                 ch.basic_publish(exchange='',
+                                  routing_key=Pname,
+                                  body='not your turn')
+                 ch.basic_publish(exchange='',
+                                  routing_key=props.reply_to,
+                                  properties=pika.BasicProperties(correlation_id= \
+                                                                      props.correlation_id),
+                                  body=str(response))
+                 ch.basic_ack(delivery_tag=method.delivery_tag)
+
+
+##################################################################################################
+
+        if id == '09':
+            Pname = message
+            for game in server.game_list:
+                for player in game.player_list:
+                    if player.nickname == Pname:
+                        curr_game = game
+            response = curr_game.dictToString(Pname)
+            ch.basic_publish(exchange='',
+                             routing_key=props.reply_to,
+                             properties=pika.BasicProperties(correlation_id= \
+                                                                 props.correlation_id),
+                             body=str(response))
+            ch.basic_ack(delivery_tag=method.delivery_tag)
 
 
 
-                     ##################################################################################################
-    def checkHit(self, x, y, curr_player_name, game_number):
+##################################################################################################
+
+    def checkHit(self, x, y, curr_player_name, curr_game):
         hit = False
         message = ''
-        game = server.game_list[game_number - 1]
+        game = curr_game
         for player in game.player_list:
             if player.nickname != curr_player_name:
                 if player.battlefield[x][y] == '1':
@@ -219,6 +288,26 @@ class Game:
         #list of players initialization
         self.player_list = []
         self.dict_of_hits = {}
+
+    def changeList(self):
+        first, last = self.player_list[0], self.player_list[1:]
+        self.player_list = last
+        self.player_list.append(first)
+
+    def dictToString(self, nickname):
+        string = ''
+        if self.dict_of_hits[nickname]:
+            for value in self.dict_of_hits[nickname]:
+                string += str(value) + ';'
+        else:
+            string = 'empty'
+        string += '|'
+        for player in self.player_list:
+            if player.nickname != nickname:
+                for value in self.dict_of_hits[player.nickname]:
+                    if value:
+                        string += str(value) + ';'
+        return string
 
     def addPlayer(self, player):
         self.player_list.append(player)

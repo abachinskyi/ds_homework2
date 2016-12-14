@@ -3,6 +3,8 @@ import uuid
 from random import randint
 import math
 import time
+
+
 #########################____RPC____START_____#################################
 
 class Fleet:
@@ -94,6 +96,7 @@ class User(object):
         self.name = ''
         self.fieldSize = 0
         self.battlefield = None
+        self.enemy_battlefield = None
         self.rpc_queue = 'rpc_queue'
         self.state = 'not connected'
         self.connection = pika.BlockingConnection(pika.ConnectionParameters(
@@ -101,18 +104,23 @@ class User(object):
 
         self.channel = self.connection.channel()
 
-
         result = self.channel.queue_declare(exclusive=True)
         self.callback_queue = result.method.queue
-
 
         self.channel.basic_consume(self.on_response, no_ack=True,
                                    queue=self.callback_queue)
 
-
-
     def getState(self, ch, method, properties, body):
         self.state = body
+
+    def stringToList(self,string_to_parse):
+        temp_list = string_to_parse.split(';')[:-1]
+        coords = []
+        for value in temp_list:
+            value = value[1:-1]
+            x, y = value.split(',')
+            coords.append((int(x), int(y)))
+        return coords
 
     def BattlefieldToString(self):
         string = ''
@@ -144,6 +152,36 @@ class User(object):
                 elif elem == 2:
                     str_el = "$"
                 elif elem == 3:
+                    str_el = "*"
+                str += " %s |" % str_el
+            counter += 1
+            main_str += str
+            main_str += "\n"
+            main_str += "____" * (len(self.battlefield) + 1)
+            main_str += "\n"
+        return main_str
+
+    def returnEnemyBattlefield(self):
+        main_str = "    "
+        for num in range(len(self.enemy_battlefield)):
+            if num < 10:
+                main_str += (" %s  ") % (num + 1)
+            else:
+                main_str += ("%s  ") % (num + 1)
+
+        main_str += "\n"
+        counter = 1
+        for row in self.enemy_battlefield:
+            if counter < 10:
+                str = "%s. |" % counter
+            else:
+                str = "%s.|" % counter
+            for elem in row:
+                if elem == 0:
+                    str_el = " "
+                elif elem == 1:
+                    str_el = "$"
+                elif elem == 2:
                     str_el = "*"
                 str += " %s |" % str_el
             counter += 1
@@ -239,7 +277,7 @@ class User(object):
         self.response = None
         self.corr_id = str(uuid.uuid4())
         bat = self.BattlefieldToString()
-        request = '04_'+self.name+','+bat
+        request = '04_' + self.name + ',' + bat
         self.channel.basic_publish(exchange='',
                                    routing_key=self.rpc_queue,
                                    properties=pika.BasicProperties(
@@ -254,7 +292,7 @@ class User(object):
     def callCheckGame(self):
         self.response = None
         self.corr_id = str(uuid.uuid4())
-        request = '05_'+self.name
+        request = '05_' + self.name
         self.channel.basic_publish(exchange='',
                                    routing_key=self.rpc_queue,
                                    properties=pika.BasicProperties(
@@ -266,7 +304,65 @@ class User(object):
             self.connection.process_data_events()
         return self.response
 
+    def callEndGame(self):
+        self.response = None
+        self.corr_id = str(uuid.uuid4())
+        request = '06_' + self.name
+        self.channel.basic_publish(exchange='',
+                                   routing_key=self.rpc_queue,
+                                   properties=pika.BasicProperties(
+                                       reply_to=self.callback_queue,
+                                       correlation_id=self.corr_id,
+                                   ),
+                                   body=str(request))
+        while self.response is None:
+            self.connection.process_data_events()
+        return self.response
 
+    def callShoot(self, x, y):
+        self.response = None
+        self.corr_id = str(uuid.uuid4())
+        request = '07_' + self.name + '.' + str(x) + ',' + str(y)
+        self.channel.basic_publish(exchange='',
+                                   routing_key=self.rpc_queue,
+                                   properties=pika.BasicProperties(
+                                       reply_to=self.callback_queue,
+                                       correlation_id=self.corr_id,
+                                   ),
+                                   body=str(request))
+        while self.response is None:
+            self.connection.process_data_events()
+        return self.response
+
+    def callCheckTurn(self):
+        self.response = None
+        self.corr_id = str(uuid.uuid4())
+        request = '08_' + self.name
+        self.channel.basic_publish(exchange='',
+                                   routing_key=self.rpc_queue,
+                                   properties=pika.BasicProperties(
+                                       reply_to=self.callback_queue,
+                                       correlation_id=self.corr_id,
+                                   ),
+                                   body=str(request))
+        while self.response is None:
+            self.connection.process_data_events()
+        return self.response
+
+    def callInfo(self):
+        self.response = None
+        self.corr_id = str(uuid.uuid4())
+        request = '09_' + self.name
+        self.channel.basic_publish(exchange='',
+                                   routing_key=self.rpc_queue,
+                                   properties=pika.BasicProperties(
+                                       reply_to=self.callback_queue,
+                                       correlation_id=self.corr_id,
+                                   ),
+                                   body=str(request))
+        while self.response is None:
+            self.connection.process_data_events()
+        return self.response
 
 
 #########################____RPC____END_____####################################
@@ -290,7 +386,7 @@ def checkAddedShip(x, y, ship_size, battlefield, direction=''):
         if not checkNear(x, y, battlefield):
             return False
     elif ((direction == 'v') and ((x + ship_size) > len(battlefield))) or (
-        (direction == 'h') and ((y + ship_size) > len(battlefield))):
+                (direction == 'h') and ((y + ship_size) > len(battlefield))):
         return False
     elif (direction == 'v') and ((x + ship_size - 1) <= len(battlefield)):
         for i in range(ship_size):
@@ -305,7 +401,7 @@ def checkAddedShip(x, y, ship_size, battlefield, direction=''):
 
 if __name__ == "__main__":
 
-#########################____RPC____START_____#################################
+    #########################____RPC____START_____#################################
 
     user = User()
     print "Hello! Welcome to the Battleship Game."
@@ -314,7 +410,7 @@ if __name__ == "__main__":
         time.sleep(2)
         print user.state
 
-#####################################################################################################
+        #####################################################################################################
 
         if user.state == 'not connected':
             while True:
@@ -351,13 +447,13 @@ if __name__ == "__main__":
                 else:
                     choice = 1
 
-        #####################################################################################################
+                    #####################################################################################################
 
                 if choice == 1:
                     print "To create a new game, You need to enter the field size you want to play on and number of players."
                     while True:
                         print "Notice that field size should be between %d and %d and number of players should be at least two." % (
-                        min_field_size, max_field_size)
+                            min_field_size, max_field_size)
                         size_of_field = raw_input("Field size: ")
                         user.fieldSize = int(size_of_field)
                         number_of_players = raw_input('Number of players:')
@@ -376,7 +472,7 @@ if __name__ == "__main__":
                             continue
                     break
 
-        #####################################################################################################
+                    #####################################################################################################
 
                 elif choice == 2:
                     print "What game would you like to join?"
@@ -417,15 +513,15 @@ if __name__ == "__main__":
                                 x = randint(0, len(user.battlefield) - 1)
                                 y = randint(0, len(user.battlefield) - 1)
                                 direction = randint(0, 1)
-                                #print "I generate %d, %d of dir %d" % (x, y, direction)
+                                # print "I generate %d, %d of dir %d" % (x, y, direction)
                                 if num_ships_by_type[1] == 1:
                                     if checkAddedShip(x, y, num_ships_by_type[1], user.battlefield):
                                         fleet.addShip(Ship(num_ships_by_type[1], [(x, y)]))
-                                        #print "I added ship of size %d with coord %s" % (num_ships_by_type[1], str([(x, y)]))
+                                        # print "I added ship of size %d with coord %s" % (num_ships_by_type[1], str([(x, y)]))
                                         user.addPlayersFleetOnBoard(fleet)
                                         break
                                     else:
-                                        #print "No"
+                                        # print "No"
                                         continue
                                 else:
                                     if direction == 0:
@@ -435,11 +531,11 @@ if __name__ == "__main__":
                                             for i in range(1, num_ships_by_type[1]):
                                                 list.append((x, y + i))
                                             fleet.addShip(Ship(num_ships_by_type[1], list))
-                                            #print "I added ship of size %d with coord %s" % (num_ships_by_type[1], str(list))
+                                            # print "I added ship of size %d with coord %s" % (num_ships_by_type[1], str(list))
                                             user.addPlayersFleetOnBoard(fleet)
                                             break
                                         else:
-                                            #print "No"
+                                            # print "No"
                                             continue
                                     else:
                                         if checkAddedShip(x, y, num_ships_by_type[1], user.battlefield, 'v'):
@@ -448,13 +544,14 @@ if __name__ == "__main__":
                                             for i in range(1, num_ships_by_type[1]):
                                                 list.append((x + i, y))
                                             fleet.addShip(Ship(num_ships_by_type[1], list))
-                                            #print "I added ship of size %d with coord %s" % (num_ships_by_type[1], str(list))
+                                            # print "I added ship of size %d with coord %s" % (num_ships_by_type[1], str(list))
                                             user.addPlayersFleetOnBoard(fleet)
                                             break
                                         else:
-                                            #print "No"
+                                            # print "No"
                                             continue
                     user.addPlayersFleetOnBoard(fleet)
+                    user.enemy_battlefield = user.createBattlefield(user.fieldSize)
                     response = user.callSendBattlefield()
                     if response == 'OK!':
                         print user.returnBattlefield()
@@ -510,6 +607,7 @@ if __name__ == "__main__":
                                     continue
                             fleet.addShip(Ship(size, list))
                             user.addPlayersFleetOnBoard(fleet)
+                            user.enemy_battlefield = user.createBattlefield(user.fieldSize)
                             response = user.callSendBattlefield()
                             if response == 'OK!':
                                 print user.returnBattlefield()
@@ -525,19 +623,60 @@ if __name__ == "__main__":
 
             while True:
                 response = user.callCheckGame()
-                print user.state
                 if response == 'OK!':
                     break
 
-
         if user.state == 'your turn':
-
-            print 'POEHALI!'
-
+            response = 'HIT'
+            yourbattlefield = user.callInfo()
+            your, another = yourbattlefield.split('|')
+            if your != 'empty':
+                your_list = user.stringToList(your)
+                for coord in your_list:
+                    user.battlefield[coord[0]][coord[1]] = 2
+            if another:
+                another_list = user.stringToList(another)
+                for coord in another_list:
+                    user.enemy_battlefield[coord[0]][coord[1]] = 1
+            while response == 'HIT':
+                print 'Now your battlefield looks like this:'
+                print user.returnBattlefield()
+                print 'Enemies battlefield looks like this:'
+                print user.returnEnemyBattlefield()
+                choice = raw_input('Enter coordinates (x,y) or "EXIT" to end your game:')
+                try:
+                    x, y = choice.split(',')
+                    x, y = int(x) - 1, int(y) - 1
+                    if 0 <= x < user.fieldSize and 0 <= y < user.fieldSize:
+                        response = user.callShoot(x, y)
+                        if response == 'miss':
+                            user.enemy_battlefield[x][y] = 2
+                            print user.returnEnemyBattlefield()
+                            print "You have missed."
+                            break
+                        else:
+                            response, output = response.split('_')
+                            playername_list = output.split(',')[:-1]
+                            for playername in playername_list:
+                                print "You have hit %s" % playername
+                            user.enemy_battlefield[x][y] = 1
+                    else:
+                        print 'Wrong input coordinates! Try again!'
+                        continue
+                except ValueError:
+                    pass
+                if choice == 'EXIT':
+                    response = user.callEndGame()
 
         if user.state == 'not your turn':
+            while True:
+                response = user.callCheckTurn()
+                if response == 'OK!':
+                    break
 
+        if user.state == 'game over':
             pass
+
 
 
 
