@@ -3,7 +3,26 @@ import uuid
 from random import randint
 import math
 import time
+import signal
+import threading
 
+class AlarmException(Exception):
+    pass
+
+def alarmHandler(signum, frame):
+    raise AlarmException
+
+def nonBlockingRawInput(prompt='', timeout=30):
+    signal.signal(signal.SIGALRM, alarmHandler)
+    signal.alarm(timeout)
+    try:
+        text = raw_input(prompt)
+        signal.alarm(0)
+        return text
+    except AlarmException:
+        print '\nYou are out of time'
+    signal.signal(signal.SIGALRM, signal.SIG_IGN)
+    return 'No Input!'
 
 #########################____RPC____START_____#################################
 
@@ -107,6 +126,7 @@ class User(object):
         result = self.channel.queue_declare(exclusive=True)
         self.callback_queue = result.method.queue
 
+
         self.channel.basic_consume(self.on_response, no_ack=True,
                                    queue=self.callback_queue)
 
@@ -197,6 +217,21 @@ class User(object):
             battlefield.append([])
             for j in range(game_field_size):
                 battlefield[i].append(0)
+        return battlefield
+
+    def StringToBattelfield(self,stringBattle,field_size):
+        self.fieldSize = field_size
+        self.enemy_battlefield = self.createBattlefield(self.fieldSize)
+        self.battlefield = self.createBattlefield(self.fieldSize)
+        battlefield = []
+        i = 0
+        while i < len(stringBattle):
+            x = []
+            for j in range(len(self.battlefield)):
+
+                x.append(int(stringBattle[i + j]))
+            i += len(self.battlefield)
+            battlefield.append(x)
         return battlefield
 
     def addPlayersFleetOnBoard(self, fleet):
@@ -364,6 +399,81 @@ class User(object):
             self.connection.process_data_events()
         return self.response
 
+    def callUserState(self):
+        self.response = None
+        self.corr_id = str(uuid.uuid4())
+        request = '10_' + self.name
+        self.channel.basic_publish(exchange='',
+                                   routing_key=self.rpc_queue,
+                                   properties=pika.BasicProperties(
+                                       reply_to=self.callback_queue,
+                                       correlation_id=self.corr_id,
+                                   ),
+                                   body=str(request))
+        while self.response is None:
+            self.connection.process_data_events()
+        return self.response
+
+    def callBattlefield(self):
+        self.response = None
+        self.corr_id = str(uuid.uuid4())
+        request = '11_' + self.name
+        self.channel.basic_publish(exchange='',
+                                   routing_key=self.rpc_queue,
+                                   properties=pika.BasicProperties(
+                                       reply_to=self.callback_queue,
+                                       correlation_id=self.corr_id,
+                                   ),
+                                   body=str(request))
+        while self.response is None:
+            self.connection.process_data_events()
+        return self.response
+
+    def callNextPlayer(self):
+        self.response = None
+        self.corr_id = str(uuid.uuid4())
+        request = '12_' + self.name
+        self.channel.basic_publish(exchange='',
+                                   routing_key=self.rpc_queue,
+                                   properties=pika.BasicProperties(
+                                       reply_to=self.callback_queue,
+                                       correlation_id=self.corr_id,
+                                   ),
+                                   body=str(request))
+        while self.response is None:
+            self.connection.process_data_events()
+        return self.response
+
+    def callWin(self):
+        self.response = None
+        self.corr_id = str(uuid.uuid4())
+        request = '13_' + self.name
+        self.channel.basic_publish(exchange='',
+                                   routing_key=self.rpc_queue,
+                                   properties=pika.BasicProperties(
+                                       reply_to=self.callback_queue,
+                                       correlation_id=self.corr_id,
+                                   ),
+                                   body=str(request))
+        while self.response is None:
+            self.connection.process_data_events()
+        return self.response
+
+    def callSpectator(self):
+        self.response = None
+        self.corr_id = str(uuid.uuid4())
+        request = '14_' + self.name
+        self.channel.basic_publish(exchange='',
+                                   routing_key=self.rpc_queue,
+                                   properties=pika.BasicProperties(
+                                       reply_to=self.callback_queue,
+                                       correlation_id=self.corr_id,
+                                   ),
+                                   body=str(request))
+        while self.response is None:
+            self.connection.process_data_events()
+        return self.response
+
 
 #########################____RPC____END_____####################################
 
@@ -420,13 +530,18 @@ if __name__ == "__main__":
                 user.channel.basic_consume(user.getState,
                                            queue=user.name,
                                            no_ack=True)
-                print " [x] Requesting NAME"
-                response = user.callName(nickname)
-                if response == 'Wrong NAME':
-                    print 'This name already exists!'
-                    continue
-                if response == 'OK':
-                    print 'Congratulations!'
+                user.state = user.callUserState()
+                print user.state
+                if user.state == 'not connected':
+                    print " [x] Requesting NAME"
+                    response = user.callName(nickname)
+                    if response == 'Wrong NAME':
+                        print 'This name already exists!'
+                        continue
+                    if response == 'OK':
+                        print 'Congratulations!'
+                        break
+                else:
                     break
 
         #####################################################################################################
@@ -495,6 +610,9 @@ if __name__ == "__main__":
         #####################################################################################################
 
         if user.state == 'joined':
+            battlefieldServer = user.callBattlefield()
+            battlefieldS, game_size = battlefieldServer.split(',')
+            user.fieldSize = int(game_size)
             user.battlefield = user.createBattlefield(user.fieldSize)
             fleet = Fleet(user.fieldSize)
             while True:
@@ -627,46 +745,76 @@ if __name__ == "__main__":
                     break
 
         if user.state == 'your turn':
-            response = 'HIT'
-            yourbattlefield = user.callInfo()
-            your, another = yourbattlefield.split('|')
-            if your != 'empty':
-                your_list = user.stringToList(your)
-                for coord in your_list:
-                    user.battlefield[coord[0]][coord[1]] = 2
-            if another:
-                another_list = user.stringToList(another)
-                for coord in another_list:
-                    user.enemy_battlefield[coord[0]][coord[1]] = 1
-            while response == 'HIT':
-                print 'Now your battlefield looks like this:'
-                print user.returnBattlefield()
-                print 'Enemies battlefield looks like this:'
-                print user.returnEnemyBattlefield()
-                choice = raw_input('Enter coordinates (x,y) or "EXIT" to end your game:')
-                try:
-                    x, y = choice.split(',')
-                    x, y = int(x) - 1, int(y) - 1
-                    if 0 <= x < user.fieldSize and 0 <= y < user.fieldSize:
-                        response = user.callShoot(x, y)
-                        if response == 'miss':
-                            user.enemy_battlefield[x][y] = 2
-                            print user.returnEnemyBattlefield()
-                            print "You have missed."
-                            break
-                        else:
-                            response, output = response.split('_')
-                            playername_list = output.split(',')[:-1]
-                            for playername in playername_list:
-                                print "You have hit %s" % playername
-                            user.enemy_battlefield[x][y] = 1
-                    else:
-                        print 'Wrong input coordinates! Try again!'
-                        continue
-                except ValueError:
-                    pass
-                if choice == 'EXIT':
+            response = user.callWin()
+            if response == 'not':
+                if user.fieldSize == 0:
+                    battlefieldServer = user.callBattlefield()
+                    battlefieldS, game_size = battlefieldServer.split(',')
+                    #print user.battlefield
+                    user.battlefield = user.StringToBattelfield(battlefieldS,int(game_size))
+                response = 'HIT'
+                yourbattlefield = user.callInfo()
+                your, another = yourbattlefield.split('|')
+                if your != 'empty':
+                    your_list = user.stringToList(your)
+                    for coord in your_list:
+                        user.battlefield[coord[0]][coord[1]] = 2
+                if another:
+                    another_list = user.stringToList(another)
+                    for coord in another_list:
+                        user.enemy_battlefield[coord[0]][coord[1]] = 1
+                end = True
+                for row in user.battlefield:
+                    for elem in row:
+                        if elem == 1:
+                            end = False
+                print end
+                print user.battlefield
+                if end == True:
                     response = user.callEndGame()
+                elif end == False:
+                    while response == 'HIT':
+                        print 'Now your battlefield looks like this:'
+                        print user.returnBattlefield()
+                        print 'Enemies battlefield looks like this:'
+                        print user.returnEnemyBattlefield()
+                        #choice = raw_input('Enter coordinates (x,y) or "EXIT" to end your game:')
+                        choice = nonBlockingRawInput('You have 30 sec to Enter coordinates (x,y) or "EXIT" to end your game:')
+                        if choice != 'No Input!':
+                            try:
+                                x, y = choice.split(',')
+                                x, y = int(x) - 1, int(y) - 1
+                                if 0 <= x < user.fieldSize and 0 <= y < user.fieldSize:
+                                    response = user.callShoot(x, y)
+                                    if response == 'miss':
+                                        user.enemy_battlefield[x][y] = 2
+                                        print user.returnEnemyBattlefield()
+                                        print "You have missed."
+                                        break
+                                    else:
+                                        response, output = response.split('_')
+                                        playername_list = output.split(',')[:-1]
+                                        for playername in playername_list:
+                                            print "You have hit %s" % playername
+                                        user.enemy_battlefield[x][y] = 1
+                                else:
+                                    print 'Wrong input coordinates! Try again!'
+                                    continue
+                            except ValueError:
+                                pass
+                        elif choice == 'EXIT':
+                            response = user.callEndGame()
+                        else:
+                            print 'KUKU'
+                            response = user.callNextPlayer()
+                            print response
+                            if response == 'miss':
+                                user.state = 'not your turn'
+                                break
+                            else:
+                                print 'connection problem'
+            elif response == 'win':
+                user.state = 'win'
 
         if user.state == 'not your turn':
             while True:
@@ -675,7 +823,22 @@ if __name__ == "__main__":
                     break
 
         if user.state == 'game over':
-            pass
+            choice = raw_input("Do you want to spectate or exit? (y/n)")
+            if choice == 'y':
+                while True:
+                    time.sleep(40)
+                    allBattlefields = user.callSpectator()
+                    list_battlefields = allBattlefields.split(';')
+                    for bfield in list_battlefields:
+                        user.battlefield = user.StringToBattelfield(bfield, user.fieldSize)
+                        print 'Your enemies fields:'
+                        print user.returnBattlefield()
+
+            else:
+                print "Good bye."
+
+        if user.state == 'win':
+            print "You are winner."
 
 
 

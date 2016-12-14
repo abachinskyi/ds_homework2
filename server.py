@@ -1,6 +1,7 @@
 from random import randrange
 import pika
 import math
+import threading
 
 #########################____RPC____START_____##################################
 
@@ -12,6 +13,8 @@ import math
 
 global _game_counter
 _game_counter = 0
+
+
 
 class Server:
     def __init__(self, name = "Default"):
@@ -32,16 +35,28 @@ class Server:
         request = body
         id, message = request.split('_')
 
+
+
 #####################################################################################################
 
         if id == '00':
             player_name = message
+            #print player_name
             if player_name in server.player_nicknames_list:
-                ch.basic_publish(exchange='',
-                                 routing_key=props.reply_to,
-                                 properties=pika.BasicProperties(correlation_id= \
-                                                                     props.correlation_id),
-                                 body='Wrong NAME')
+                if server.game_list:
+                    for game in server.game_list:
+                        for player in game.player_list:
+                            if player.nickname == player_name:
+                                curr_game = game
+                    for player in curr_game.player_list:
+                        if player.nickname == player_name:
+                            player.state = 'connected'
+                else:
+                    ch.basic_publish(exchange='',
+                                     routing_key=props.reply_to,
+                                     properties=pika.BasicProperties(correlation_id= \
+                                                                         props.correlation_id),
+                                     body='Wrong NAME')
             else:
                 server.player_nicknames_list.append(player_name)
                 self.channel.queue_declare(queue=player_name)
@@ -77,6 +92,14 @@ class Server:
             game.addPlayer(Player(playerName,game.size))
             response = 'OK!'  # call of the function that is needed
             #self.channel.queue_declare(queue=playerName)
+            if server.game_list:
+                for game in server.game_list:
+                    for player in game.player_list:
+                        if player.nickname == playerName:
+                            curr_game = game
+                for player in curr_game.player_list:
+                    if player.nickname == playerName:
+                        player.state = 'joined'
             ch.basic_publish(exchange='',
                              routing_key=playerName,
                              body='joined')
@@ -96,6 +119,14 @@ class Server:
             game.addPlayer(Player(Pname,game.size))
             response = str(game.size)
             #self.channel.queue_declare(queue=Pname)
+            if server.game_list:
+                for game in server.game_list:
+                    for player in game.player_list:
+                        if player.nickname == Pname:
+                            curr_game = game
+                for player in curr_game.player_list:
+                    if player.nickname == Pname:
+                        player.state = 'joined'
             ch.basic_publish(exchange='',
                              routing_key=Pname,
                              body='joined')
@@ -120,6 +151,9 @@ class Server:
                     curr_game.counter += 1
             response = 'OK!'
             #self.channel.queue_declare(queue=Pname)
+            for player in curr_game.player_list:
+                if player.nickname == Pname:
+                    player.state = 'wait for game start'
             ch.basic_publish(exchange='',
                              routing_key=Pname,
                              body='wait for game start')
@@ -139,14 +173,19 @@ class Server:
                  for player in game.player_list:
                      if player.nickname == message:
                          curr_game = game
-             print curr_game.counter
              if curr_game.counter == curr_game.numPlayers:
                  if curr_game.player_list[0].nickname == message:
                      # self.channel.queue_declare(queue=curr_game.player_list[numb].nickname)
+                     for player in curr_game.player_list:
+                         if player.nickname == message:
+                             player.state = 'your turn'
                      ch.basic_publish(exchange='',
                                       routing_key=message,
                                       body='your turn')
                  else:
+                     for player in curr_game.player_list:
+                         if player.nickname == message:
+                             player.state = 'not your turn'
                      ch.basic_publish(exchange='',
                                       routing_key=message,
                                       body='not your turn')
@@ -166,6 +205,9 @@ class Server:
                      if player.nickname == message:
                          curr_game = game
                          curr_game.player_list.remove(player)
+             for player in curr_game.player_list:
+                 if player.nickname == message:
+                     player.state = 'game over'
              ch.basic_publish(exchange='',
                               routing_key=message,
                               body='game over')
@@ -198,6 +240,9 @@ class Server:
              else:
                  response = 'miss'
                  curr_game.changeList()
+                 for player in curr_game.player_list:
+                     if player.nickname == Pname:
+                         player.state = 'not your turn'
                  ch.basic_publish(exchange='',
                                   routing_key=Pname,
                                   body='not your turn')
@@ -213,10 +258,11 @@ class Server:
 
         if id == '09':
             Pname = message
-            for game in server.game_list:
-                for player in game.player_list:
-                    if player.nickname == Pname:
-                        curr_game = game
+            if server.game_list:
+                for game in server.game_list:
+                    for player in game.player_list:
+                        if player.nickname == Pname:
+                            curr_game = game
             response = curr_game.dictToString(Pname)
             ch.basic_publish(exchange='',
                              routing_key=props.reply_to,
@@ -226,6 +272,110 @@ class Server:
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
 
+
+##################################################################################################
+
+        if id == '10':
+            Pname = message
+            print Pname
+            curr_game = None
+            if server.game_list:
+                response = 'not connected'
+                for game in server.game_list:
+                    for player in game.player_list:
+                        if player.nickname == Pname:
+                            curr_game = game
+                if curr_game:
+                    for player in curr_game.player_list:
+                        if player.nickname == Pname:
+                            response = player.state
+                            break
+            else:
+                response = 'not connected'
+                print response
+            ch.basic_publish(exchange='',
+                             routing_key=props.reply_to,
+                             properties=pika.BasicProperties(correlation_id= \
+                                                                 props.correlation_id),
+                             body=str(response))
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+
+##################################################################################################
+
+        if id == '11':
+            Pname = message
+            for game in server.game_list:
+                for player in game.player_list:
+                    if player.nickname == Pname:
+                        curr_game = game
+            for player in curr_game.player_list:
+                if player.nickname == Pname:
+                    response = player.BattlefieldToString()+','+str(curr_game.size)
+            ch.basic_publish(exchange='',
+                             routing_key=props.reply_to,
+                             properties=pika.BasicProperties(correlation_id= \
+                                                                 props.correlation_id),
+                             body=str(response))
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+
+##################################################################################################
+
+        if id == '12':
+            Pname = message
+            response = 'miss'
+            for game in server.game_list:
+                for player in game.player_list:
+                    if player.nickname == Pname:
+                        curr_game = game
+            curr_game.changeList()
+            for player in curr_game.player_list:
+                if player.nickname == Pname:
+                    player.state = 'not your turn'
+            ch.basic_publish(exchange='',
+                             routing_key=Pname,
+                             body='not your turn')
+            ch.basic_publish(exchange='',
+                             routing_key=props.reply_to,
+                             properties=pika.BasicProperties(correlation_id= \
+                                                                 props.correlation_id),
+                             body=str(response))
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+
+##################################################################################################
+
+        if id == '13':
+            Pname = message
+            response = 'not'
+            for game in server.game_list:
+                for player in game.player_list:
+                    if player.nickname == Pname:
+                        curr_game = game
+            print len(curr_game.player_list)
+            if len(curr_game.player_list) == 1:
+                response = 'win'
+                server.game_list.remove(curr_game)
+            ch.basic_publish(exchange='',
+                             routing_key=props.reply_to,
+                             properties=pika.BasicProperties(correlation_id= \
+                                                                 props.correlation_id),
+                             body=str(response))
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+
+##################################################################################################
+
+        if id == '14':
+            Pname = message
+            response = ''
+            for game in server.game_list:
+                for player in game.player_list:
+                        response += player.BattlefieldToString() + ';'
+
+            ch.basic_publish(exchange='',
+                             routing_key=props.reply_to,
+                             properties=pika.BasicProperties(correlation_id= \
+                                                                 props.correlation_id),
+                             body=str(response))
+            ch.basic_ack(delivery_tag=method.delivery_tag)
 
 ##################################################################################################
 
@@ -322,6 +472,7 @@ class Game:
 class Player:
     def __init__(self, nickname, game_field_size):
         self.nickname = nickname
+        self.state = 'not connected'
         self.battlefield = self.createBattlefield(game_field_size)
 
     def StringToBattelfield(self,stringBattle):
@@ -334,6 +485,13 @@ class Player:
             i += len(self.battlefield)
             battlefield.append(x)
         return battlefield
+
+    def BattlefieldToString(self):
+        string = ''
+        for i in self.battlefield:
+            for j in i:
+                string += str(j)
+        return string
 
     def getNickname(self):
         return self.nickname
