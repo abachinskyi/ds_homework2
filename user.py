@@ -474,6 +474,21 @@ class User(object):
             self.connection.process_data_events()
         return self.response
 
+    def callListofPlayers(self):
+        self.response = None
+        self.corr_id = str(uuid.uuid4())
+        request = '15_'
+        self.channel.basic_publish(exchange='',
+                                   routing_key=self.rpc_queue,
+                                   properties=pika.BasicProperties(
+                                       reply_to=self.callback_queue,
+                                       correlation_id=self.corr_id,
+                                   ),
+                                   body=str(request))
+        while self.response is None:
+            self.connection.process_data_events()
+        return self.response
+
 
 #########################____RPC____END_____####################################
 
@@ -515,7 +530,7 @@ if __name__ == "__main__":
 
     user = User()
     print "Hello! Welcome to the Battleship Game."
-    print "What server would you like to join?"
+    print "Here`s the list of all players of the server:"
     while True:
         time.sleep(2)
 
@@ -523,7 +538,8 @@ if __name__ == "__main__":
 
         if user.state == 'not connected':
             while True:
-                nickname = raw_input("Enter your nickname: ")
+                print user.callListofPlayers()
+                nickname = raw_input("Enter your nickname which are not in the list if you are not trying to reconnect: ")
                 user.name = nickname
                 user.channel.queue_declare(queue=user.name)
                 user.channel.basic_consume(user.getState,
@@ -804,9 +820,7 @@ if __name__ == "__main__":
                                 pass
 
                         else:
-                            print 'KUKU'
                             response = user.callNextPlayer()
-                            print response
                             if response == 'miss':
                                 user.state = 'not your turn'
                                 break

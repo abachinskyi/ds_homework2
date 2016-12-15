@@ -277,7 +277,6 @@ class Server:
 
         if id == '10':
             Pname = message
-            print Pname
             curr_game = None
             if server.game_list:
                 response = 'not connected'
@@ -292,7 +291,6 @@ class Server:
                             break
             else:
                 response = 'not connected'
-                print response
             ch.basic_publish(exchange='',
                              routing_key=props.reply_to,
                              properties=pika.BasicProperties(correlation_id= \
@@ -350,7 +348,6 @@ class Server:
                 for player in game.player_list:
                     if player.nickname == Pname:
                         curr_game = game
-            print len(curr_game.player_list)
             if len(curr_game.player_list) == 1:
                 response = 'win'
                 server.game_list.remove(curr_game)
@@ -369,6 +366,23 @@ class Server:
             for game in server.game_list:
                 for player in game.player_list:
                         response += player.BattlefieldToString() + ';'
+
+            ch.basic_publish(exchange='',
+                             routing_key=props.reply_to,
+                             properties=pika.BasicProperties(correlation_id= \
+                                                                 props.correlation_id),
+                             body=str(response))
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+
+##################################################################################################
+
+        if id == '15':
+            response = ''
+            if server.player_nicknames_list:
+                for player in server.player_nicknames_list:
+                        response += str(player) + ','
+            else:
+                response = 'OK!'
 
             ch.basic_publish(exchange='',
                              routing_key=props.reply_to,
