@@ -518,7 +518,6 @@ if __name__ == "__main__":
     print "What server would you like to join?"
     while True:
         time.sleep(2)
-        #print user.state
 
         #####################################################################################################
 
@@ -700,7 +699,7 @@ if __name__ == "__main__":
                             else:
                                 print 'Wrong option.'
                                 continue
-                            coords = raw_input('Enter top cootdinate of the ship: x,y: ')
+                            coords = raw_input('Enter top coordinates of the ship: x,y: ')
                             x, y = coords.split(',')
                             x, y = int(x) - 1, int(y) - 1
                             list = []
@@ -768,8 +767,6 @@ if __name__ == "__main__":
                     for elem in row:
                         if elem == 1:
                             end = False
-                print end
-                print user.battlefield
                 if end == True:
                     response = user.callEndGame()
                 elif end == False:
