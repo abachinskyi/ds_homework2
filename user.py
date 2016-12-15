@@ -518,7 +518,7 @@ if __name__ == "__main__":
     print "What server would you like to join?"
     while True:
         time.sleep(2)
-        print user.state
+        #print user.state
 
         #####################################################################################################
 
@@ -780,6 +780,9 @@ if __name__ == "__main__":
                         print user.returnEnemyBattlefield()
                         #choice = raw_input('Enter coordinates (x,y) or "EXIT" to end your game:')
                         choice = nonBlockingRawInput('You have 30 sec to Enter coordinates (x,y) or "EXIT" to end your game:')
+                        if choice == 'EXIT':
+                            response = user.callEndGame()
+                            break
                         if choice != 'No Input!':
                             try:
                                 x, y = choice.split(',')
@@ -802,8 +805,7 @@ if __name__ == "__main__":
                                     continue
                             except ValueError:
                                 pass
-                        elif choice == 'EXIT':
-                            response = user.callEndGame()
+
                         else:
                             print 'KUKU'
                             response = user.callNextPlayer()
